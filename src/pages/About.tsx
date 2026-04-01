@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { Link } from "react-router-dom";
 import { ShieldCheck, Users, Cpu, CheckCircle2, Target, Eye, Award, History, Leaf, TrendingUp } from "lucide-react";
 
 const fadeInUp = {
@@ -215,6 +216,26 @@ export default function About() {
                     <p className="text-slate-400">Transparent data leads to better investment decisions and long-term financial stability.</p>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-24 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-blue-950 rounded-[3rem] p-12 md:p-20 text-center text-white relative overflow-hidden">
+            <div className="relative z-10 max-w-2xl mx-auto">
+              <h2 className="text-4xl font-bold mb-8">Ready to See TRACES in Action?</h2>
+              <p className="text-blue-200/70 text-lg mb-10">Experience the power of full transparency. Explore our traceable products or meet the team behind the platform.</p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link to="/products" className="bg-green-600 hover:bg-green-700 text-white px-10 py-4 rounded-full font-bold transition-all">
+                  Explore Products
+                </Link>
+                <Link to="/team" className="bg-white/10 backdrop-blur-md hover:bg-white/20 text-white border border-white/30 px-10 py-4 rounded-full font-bold transition-all">
+                  Meet the Team
+                </Link>
               </div>
             </div>
           </div>

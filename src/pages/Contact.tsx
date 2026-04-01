@@ -97,17 +97,17 @@ export default function Contact() {
                 </div>
               </div>
 
-              {/* Map Placeholder */}
-              <div className="rounded-[2.5rem] overflow-hidden h-64 bg-slate-100 border border-slate-200 relative">
-                <div className="absolute inset-0 flex items-center justify-center text-slate-300 flex-col gap-2">
-                  <MapPin size={48} />
-                  <span className="font-bold">Google Maps Embed</span>
-                </div>
-                <img 
-                  src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&q=80&w=1000" 
-                  className="w-full h-full object-cover opacity-20 grayscale"
-                  alt="Map placeholder"
-                  referrerPolicy="no-referrer"
+              {/* Map Section */}
+              <div className="rounded-[2.5rem] overflow-hidden h-80 bg-slate-100 border border-slate-200 relative shadow-inner">
+                <iframe 
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3610.178650021447!2d55.2721877!3d25.1884736!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3e5f682829b853e9%3A0x6a534245119f29c8!2sBusiness%20Bay%20-%20Dubai!5e0!3m2!1sen!2sae!4v1711960000000!5m2!1sen!2sae" 
+                  width="100%" 
+                  height="100%" 
+                  style={{ border: 0 }} 
+                  allowFullScreen 
+                  loading="lazy" 
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Farmers Market Asia Office Location"
                 />
               </div>
             </motion.div>
@@ -146,19 +146,21 @@ export default function Contact() {
                     <form onSubmit={handleSubmit} className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                          <label className="text-sm font-bold text-slate-700 ml-1">Full Name</label>
+                          <label className="text-sm font-bold text-slate-700 ml-1">Name</label>
                           <input 
                             required
                             type="text" 
+                            name="name"
                             placeholder="John Doe" 
                             className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:border-green-500 transition-all"
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-sm font-bold text-slate-700 ml-1">Email Address</label>
+                          <label className="text-sm font-bold text-slate-700 ml-1">Email</label>
                           <input 
                             required
                             type="email" 
+                            name="email"
                             placeholder="john@example.com" 
                             className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:border-green-500 transition-all"
                           />
@@ -169,6 +171,7 @@ export default function Contact() {
                         <input 
                           required
                           type="text" 
+                          name="subject"
                           placeholder="How can we help?" 
                           className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:border-green-500 transition-all"
                         />
@@ -177,6 +180,7 @@ export default function Contact() {
                         <label className="text-sm font-bold text-slate-700 ml-1">Message</label>
                         <textarea 
                           required
+                          name="message"
                           rows={5} 
                           placeholder="Tell us more about your inquiry..." 
                           className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:border-green-500 transition-all resize-none"
@@ -187,7 +191,7 @@ export default function Contact() {
                         className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-5 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-lg shadow-green-600/20"
                       >
                         <Send size={20} />
-                        Send Message
+                        Send Button
                       </button>
                     </form>
                   </motion.div>

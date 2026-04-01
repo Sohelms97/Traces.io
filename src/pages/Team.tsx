@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { Link } from "react-router-dom";
 import { Linkedin, Mail } from "lucide-react";
 
 const fadeInUp = {
@@ -10,7 +11,7 @@ const fadeInUp = {
 
 const team = {
   leadership: [
-    { name: "Ahmed Al-Farsi", role: "Chief Executive Officer", bio: "20+ years of experience in international trade and logistics. Visionary behind the TRACES platform.", image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400" },
+    { name: "Tariqul Islam Chowdhury", role: "Founder and MD", bio: "20+ years of experience in international trade and logistics. Visionary behind the TRACES platform.", image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400" },
     { name: "Sarah Chen", role: "Chief Operations Officer", bio: "Expert in supply chain optimization and Asian market dynamics. Former logistics lead at a Fortune 500 company.", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=400" },
     { name: "Marcus Thorne", role: "Chief Technology Officer", bio: "Pioneer in blockchain and traceability systems. Leading the technical evolution of Farmers Market Asia.", image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=400" }
   ],
@@ -90,6 +91,26 @@ export default function Team() {
           </div>
         </section>
       </div>
+
+      {/* CTA Section */}
+      <section className="py-24 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-green-600 rounded-[3rem] p-12 md:p-20 text-center text-white relative overflow-hidden">
+            <div className="relative z-10 max-w-2xl mx-auto">
+              <h2 className="text-4xl font-bold mb-8">Join the TRACES Network</h2>
+              <p className="text-green-50 text-lg mb-10">Whether you're a supplier, customer, or potential investor, we'd love to hear from you. Let's build a more transparent future together.</p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link to="/contact" className="bg-white text-green-700 px-10 py-4 rounded-full font-bold transition-all">
+                  Contact Our Team
+                </Link>
+                <Link to="/investor" className="bg-green-700 text-white border border-green-500 px-10 py-4 rounded-full font-bold transition-all">
+                  Investor Portal
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

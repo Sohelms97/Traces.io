@@ -140,7 +140,7 @@ export default function Home() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-24 bg-blue-950 text-white overflow-hidden">
+      <section id="how-it-works" className="py-24 bg-blue-950 text-white overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
             <motion.h2 
@@ -191,7 +191,7 @@ export default function Home() {
       </section>
 
       {/* Products Preview Section */}
-      <section className="py-24 bg-slate-50">
+      <section id="products-preview" className="py-24 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
             <div>
@@ -255,7 +255,7 @@ export default function Home() {
       </section>
 
       {/* Investor Trust Section */}
-      <section className="py-24 bg-white">
+      <section id="investor-preview" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-blue-950 rounded-[3rem] p-12 md:p-20 text-white relative overflow-hidden">
             {/* Decorative elements */}

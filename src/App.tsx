@@ -9,13 +9,17 @@ import Products from "./pages/Products";
 import Traceability from "./pages/Traceability";
 import Investor from "./pages/Investor";
 import Contact from "./pages/Contact";
+import HashScrollHandler from "./components/HashScrollHandler";
 
 function ScrollToTop() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
 
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
+    // Only scroll to top if there's no hash (anchor link)
+    if (!hash) {
+      window.scrollTo(0, 0);
+    }
+  }, [pathname, hash]);
 
   return null;
 }
@@ -24,6 +28,7 @@ export default function App() {
   return (
     <Router>
       <ScrollToTop />
+      <HashScrollHandler />
       <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-green-100 selection:text-green-900">
         <Navbar />
         <main>

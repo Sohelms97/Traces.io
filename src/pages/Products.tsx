@@ -16,12 +16,19 @@ const products = [
   { id: "F005", name: "Rohu Fish", category: "Fish & Seafood", origin: "Myanmar", supplier: "Irrawaddy Sourcing", status: "Fully Traced", image: "https://images.unsplash.com/photo-1524704654690-b56c05c78a00?auto=format&fit=crop&q=80&w=600" },
 ];
 
+const origins = ["All", ...Array.from(new Set(products.map(p => p.origin))).sort()];
+const suppliers = ["All", ...Array.from(new Set(products.map(p => p.supplier))).sort()];
+
 export default function Products() {
   const [activeCategory, setActiveCategory] = useState("All");
+  const [activeOrigin, setActiveOrigin] = useState("All");
+  const [activeSupplier, setActiveSupplier] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredProducts = products.filter(p => 
     (activeCategory === "All" || p.category === activeCategory) &&
+    (activeOrigin === "All" || p.origin === activeOrigin) &&
+    (activeSupplier === "All" || p.supplier === activeSupplier) &&
     (p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.id.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
@@ -51,34 +58,87 @@ export default function Products() {
       {/* Filters & Search */}
       <section className="py-12 bg-white border-b border-slate-100 sticky top-16 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row justify-between items-center gap-8">
-            {/* Categories */}
-            <div className="flex flex-wrap justify-center gap-2">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${
-                    activeCategory === cat 
-                      ? "bg-green-600 text-white shadow-lg shadow-green-600/20" 
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+          <div className="space-y-8">
+            <div className="flex flex-col lg:flex-row justify-between items-center gap-8">
+              {/* Categories */}
+              <div className="flex flex-wrap justify-center gap-2">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${
+                      activeCategory === cat 
+                        ? "bg-green-600 text-white shadow-lg shadow-green-600/20" 
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search */}
+              <div className="relative w-full lg:w-96">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <input 
+                  type="text" 
+                  placeholder="Search by name or ID..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-green-500 transition-colors"
+                />
+              </div>
             </div>
 
-            {/* Search */}
-            <div className="relative w-full lg:w-96">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-              <input 
-                type="text" 
-                placeholder="Search by name or ID..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-green-500 transition-colors"
-              />
+            {/* Advanced Filters */}
+            <div className="flex flex-wrap items-center gap-6 pt-6 border-t border-slate-50">
+              <div className="flex items-center gap-3">
+                <Filter size={18} className="text-slate-400" />
+                <span className="text-sm font-bold text-slate-900">Filter by:</span>
+              </div>
+
+              {/* Origin Filter */}
+              <div className="flex flex-col gap-1.5 min-w-[160px]">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Origin Country</label>
+                <select 
+                  value={activeOrigin}
+                  onChange={(e) => setActiveOrigin(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium focus:outline-none focus:border-green-500 transition-colors"
+                >
+                  {origins.map(origin => (
+                    <option key={origin} value={origin}>{origin}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Supplier Filter */}
+              <div className="flex flex-col gap-1.5 min-w-[200px]">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Supplier</label>
+                <select 
+                  value={activeSupplier}
+                  onChange={(e) => setActiveSupplier(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium focus:outline-none focus:border-green-500 transition-colors"
+                >
+                  {suppliers.map(supplier => (
+                    <option key={supplier} value={supplier}>{supplier}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Clear Filters */}
+              {(activeCategory !== "All" || activeOrigin !== "All" || activeSupplier !== "All" || searchQuery !== "") && (
+                <button 
+                  onClick={() => {
+                    setActiveCategory("All");
+                    setActiveOrigin("All");
+                    setActiveSupplier("All");
+                    setSearchQuery("");
+                  }}
+                  className="mt-auto mb-1 text-sm font-bold text-green-600 hover:text-green-700 transition-colors"
+                >
+                  Clear All Filters
+                </button>
+              )}
             </div>
           </div>
         </div>
