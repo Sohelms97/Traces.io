@@ -68,7 +68,7 @@ export default function Home() {
       </section>
 
       {/* About Section - Concise & High Impact */}
-      <section className="py-24 bg-white overflow-hidden">
+      <section className="py-24 bg-white dark:bg-slate-950 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row items-center gap-20">
             <motion.div 
@@ -77,7 +77,7 @@ export default function Home() {
               viewport={{ once: true }}
               className="lg:w-1/2 relative"
             >
-              <div className="absolute -top-10 -left-10 w-64 h-64 bg-green-100 rounded-full blur-3xl opacity-50 -z-10" />
+              <div className="absolute -top-10 -left-10 w-64 h-64 bg-green-100 dark:bg-green-900/20 rounded-full blur-3xl opacity-50 -z-10" />
               <div className="relative rounded-[3rem] overflow-hidden shadow-2xl aspect-square md:aspect-video lg:aspect-square">
                 <img 
                   src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1000" 
@@ -99,38 +99,38 @@ export default function Home() {
               viewport={{ once: true }}
               className="lg:w-1/2"
             >
-              <span className="inline-block px-4 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold uppercase tracking-widest mb-6">
+              <span className="inline-block px-4 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold uppercase tracking-widest mb-6">
                 Radical Transparency
               </span>
-              <h2 className="text-4xl md:text-5xl font-bold text-blue-950 mb-8 leading-tight">
+              <h2 className="text-4xl md:text-5xl font-bold text-blue-950 dark:text-white mb-8 leading-tight">
                 Every Product Has <br /> <span className="text-green-600">A Story to Tell.</span>
               </h2>
-              <p className="text-slate-600 text-lg mb-10 leading-relaxed max-w-xl">
+              <p className="text-slate-600 dark:text-slate-400 text-lg mb-10 leading-relaxed max-w-xl">
                 We bridge the gap between the source and your table. TRACES isn't just a platform—it's our promise of safety, quality, and ethical sourcing for every single item we trade.
               </p>
               
               <div className="grid grid-cols-2 gap-8 mb-12">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                     <ShieldCheck size={24} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-blue-950">Verified</h4>
-                    <p className="text-slate-500 text-sm">Third-party certified quality.</p>
+                    <h4 className="font-bold text-blue-950 dark:text-white">Verified</h4>
+                    <p className="text-slate-500 dark:text-slate-500 text-sm">Third-party certified quality.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-green-50 flex items-center justify-center text-green-600 shrink-0">
+                  <div className="w-12 h-12 rounded-2xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600 dark:text-green-400 shrink-0">
                     <Cpu size={24} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-blue-950">Real-time</h4>
-                    <p className="text-slate-500 text-sm">Live logistics data tracking.</p>
+                    <h4 className="font-bold text-blue-950 dark:text-white">Real-time</h4>
+                    <p className="text-slate-500 dark:text-slate-500 text-sm">Live logistics data tracking.</p>
                   </div>
                 </div>
               </div>
 
-              <Link to="/about" className="group inline-flex items-center gap-3 bg-blue-950 text-white px-8 py-4 rounded-full font-bold transition-all hover:bg-blue-900 shadow-lg hover:shadow-blue-900/20">
+              <Link to="/about" className="group inline-flex items-center gap-3 bg-blue-950 dark:bg-slate-800 text-white px-8 py-4 rounded-full font-bold transition-all hover:bg-blue-900 dark:hover:bg-slate-700 shadow-lg hover:shadow-blue-900/20">
                 Discover Our Mission
                 <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
               </Link>
@@ -140,7 +140,7 @@ export default function Home() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-24 bg-blue-950 text-white overflow-hidden">
+      <section id="how-it-works" className="py-24 bg-blue-950 dark:bg-slate-900 text-white overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
             <motion.h2 
@@ -159,7 +159,7 @@ export default function Home() {
 
           <div className="relative">
             {/* Connection Line */}
-            <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-blue-800 -translate-y-1/2 z-0" />
+            <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-blue-800 dark:bg-slate-800 -translate-y-1/2 z-0" />
             
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-8 relative z-10">
               {[
@@ -177,7 +177,7 @@ export default function Home() {
                   transition={{ delay: i * 0.2 }}
                   className="flex flex-col items-center text-center group"
                 >
-                  <div className="w-20 h-20 rounded-full bg-blue-900 border-4 border-blue-800 flex items-center justify-center mb-6 group-hover:bg-green-600 group-hover:border-green-500 transition-all duration-500 text-green-400 group-hover:text-white">
+                  <div className="w-20 h-20 rounded-full bg-blue-900 dark:bg-slate-800 border-4 border-blue-800 dark:border-slate-700 flex items-center justify-center mb-6 group-hover:bg-green-600 group-hover:border-green-500 transition-all duration-500 text-green-400 group-hover:text-white">
                     {item.icon}
                   </div>
                   <span className="text-green-500 font-mono font-bold mb-2">{item.step}</span>
@@ -191,14 +191,14 @@ export default function Home() {
       </section>
 
       {/* Products Preview Section */}
-      <section id="products-preview" className="py-24 bg-slate-50">
+      <section id="products-preview" className="py-24 bg-slate-50 dark:bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
             <div>
               <span className="text-green-600 font-bold tracking-widest uppercase text-sm mb-4 block">Our Catalog</span>
-              <h2 className="text-4xl font-bold text-blue-950">Premium Products</h2>
+              <h2 className="text-4xl font-bold text-blue-950 dark:text-white">Premium Products</h2>
             </div>
-            <Link to="/products" className="bg-blue-950 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-900 transition-all">
+            <Link to="/products" className="bg-blue-950 dark:bg-slate-800 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-900 dark:hover:bg-slate-700 transition-all">
               View All Products
             </Link>
           </div>
@@ -224,7 +224,7 @@ export default function Home() {
               <motion.div 
                 key={i}
                 whileHover={{ y: -10 }}
-                className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-2xl transition-all border border-slate-100"
+                className="bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-2xl transition-all border border-slate-100 dark:border-slate-800"
               >
                 <div className="h-64 overflow-hidden">
                   <img 
@@ -235,16 +235,16 @@ export default function Home() {
                   />
                 </div>
                 <div className="p-8">
-                  <h3 className="text-2xl font-bold text-blue-950 mb-4">{cat.title}</h3>
+                  <h3 className="text-2xl font-bold text-blue-950 dark:text-white mb-4">{cat.title}</h3>
                   <ul className="space-y-2 mb-8">
                     {cat.items.map((item, idx) => (
-                      <li key={idx} className="text-slate-500 flex items-center gap-2">
+                      <li key={idx} className="text-slate-500 dark:text-slate-400 flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
                         {item}
                       </li>
                     ))}
                   </ul>
-                  <Link to="/products" className="w-full py-3 border border-slate-200 rounded-xl font-bold text-blue-950 hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+                  <Link to="/products" className="w-full py-3 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-blue-950 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
                     Explore Category <ArrowRight size={18} />
                   </Link>
                 </div>
@@ -255,9 +255,9 @@ export default function Home() {
       </section>
 
       {/* Investor Trust Section */}
-      <section id="investor-preview" className="py-24 bg-white">
+      <section id="investor-preview" className="py-24 bg-white dark:bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-blue-950 rounded-[3rem] p-12 md:p-20 text-white relative overflow-hidden">
+          <div className="bg-blue-950 dark:bg-slate-900 rounded-[3rem] p-12 md:p-20 text-white relative overflow-hidden">
             {/* Decorative elements */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl" />
@@ -331,21 +331,21 @@ export default function Home() {
       </section>
 
       {/* Partners Section */}
-      <section className="py-20 bg-slate-50 border-y border-slate-100">
+      <section className="py-20 bg-slate-50 dark:bg-slate-950 border-y border-slate-100 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-10">Trusted by Global Partners</p>
-          <div className="flex flex-wrap justify-center items-center gap-12 md:gap-24 opacity-50 grayscale hover:grayscale-0 transition-all">
-            <div className="text-2xl font-black text-slate-900 tracking-tighter">TABUK FISHERIES</div>
-            <div className="text-2xl font-black text-slate-900 tracking-tighter">QUE KY CORP</div>
-            <div className="text-2xl font-black text-slate-900 tracking-tighter">ASIA AGRO</div>
-            <div className="text-2xl font-black text-slate-900 tracking-tighter">ME FOODS</div>
-            <div className="text-2xl font-black text-slate-900 tracking-tighter">GLOBAL LOGISTICS</div>
+          <p className="text-slate-400 dark:text-slate-600 font-bold uppercase tracking-widest text-xs mb-10">Trusted by Global Partners</p>
+          <div className="flex flex-wrap justify-center items-center gap-12 md:gap-24 opacity-50 grayscale dark:invert hover:grayscale-0 transition-all">
+            <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">TABUK FISHERIES</div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">QUE KY CORP</div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">ASIA AGRO</div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">ME FOODS</div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">GLOBAL LOGISTICS</div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-white">
+      <section className="py-24 bg-white dark:bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative rounded-[3rem] overflow-hidden bg-green-600 p-12 md:p-20 text-center text-white">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />

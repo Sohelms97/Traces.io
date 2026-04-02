@@ -50,7 +50,7 @@ export default function Investor() {
       </section>
 
       {/* Stats Grid */}
-      <section className="py-24 bg-white">
+      <section className="py-24 bg-white dark:bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {stats.map((stat, i) => (
@@ -60,11 +60,11 @@ export default function Investor() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="p-10 rounded-[2.5rem] bg-slate-50 border border-slate-100 text-center"
+                className="p-10 rounded-[2.5rem] bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-center"
               >
-                <div className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">{stat.label}</div>
-                <div className="text-3xl font-bold text-blue-950 mb-2">{stat.value}</div>
-                <div className="text-slate-400 text-xs">{stat.sub}</div>
+                <div className="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-widest mb-2">{stat.label}</div>
+                <div className="text-3xl font-bold text-blue-950 dark:text-white mb-2">{stat.value}</div>
+                <div className="text-slate-400 dark:text-slate-500 text-xs">{stat.sub}</div>
               </motion.div>
             ))}
           </div>
@@ -72,11 +72,11 @@ export default function Investor() {
       </section>
 
       {/* Features */}
-      <section className="py-24 bg-slate-50">
+      <section className="py-24 bg-slate-50 dark:bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <h2 className="text-4xl font-bold text-blue-950 mb-6">Transparency Features</h2>
-            <p className="text-slate-500 text-lg max-w-2xl mx-auto">We provide our investors with the tools they need to track their performance with absolute clarity.</p>
+            <h2 className="text-4xl font-bold text-blue-950 dark:text-white mb-6">Transparency Features</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-lg max-w-2xl mx-auto">We provide our investors with the tools they need to track their performance with absolute clarity.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             {features.map((feature, i) => (
@@ -85,14 +85,14 @@ export default function Investor() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
-                className="flex gap-8 p-10 bg-white rounded-[3rem] shadow-sm border border-slate-100"
+                className="flex gap-8 p-10 bg-white dark:bg-slate-800 rounded-[3rem] shadow-sm border border-slate-100 dark:border-slate-700"
               >
-                <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                   {feature.icon}
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-blue-950 mb-4">{feature.title}</h3>
-                  <p className="text-slate-500 leading-relaxed">{feature.desc}</p>
+                  <h3 className="text-2xl font-bold text-blue-950 dark:text-white mb-4">{feature.title}</h3>
+                  <p className="text-slate-500 dark:text-slate-400 leading-relaxed">{feature.desc}</p>
                 </div>
               </motion.div>
             ))}
@@ -101,15 +101,15 @@ export default function Investor() {
       </section>
 
       {/* Process Flow */}
-      <section className="py-24 bg-white overflow-hidden">
+      <section className="py-24 bg-white dark:bg-slate-950 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <h2 className="text-4xl font-bold text-blue-950 mb-6">Investment Process</h2>
-            <p className="text-slate-500 text-lg">A simple, secure, and transparent journey for our partners.</p>
+            <h2 className="text-4xl font-bold text-blue-950 dark:text-white mb-6">Investment Process</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-lg">A simple, secure, and transparent journey for our partners.</p>
           </div>
           
           <div className="relative">
-            <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-slate-100 -translate-y-1/2" />
+            <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-slate-100 dark:bg-slate-800 -translate-y-1/2" />
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-8 relative z-10">
               {[
                 { step: "01", title: "Contract", desc: "Sign investment agreement." },
@@ -127,11 +127,11 @@ export default function Investor() {
                   transition={{ delay: i * 0.1 }}
                   className="flex flex-col items-center text-center"
                 >
-                  <div className="w-16 h-16 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center mb-6 text-green-600 font-bold shadow-sm">
+                  <div className="w-16 h-16 rounded-full bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center mb-6 text-green-600 dark:text-green-400 font-bold shadow-sm">
                     {item.step}
                   </div>
-                  <h4 className="font-bold text-blue-950 mb-2">{item.title}</h4>
-                  <p className="text-slate-400 text-xs leading-relaxed">{item.desc}</p>
+                  <h4 className="font-bold text-blue-950 dark:text-white mb-2">{item.title}</h4>
+                  <p className="text-slate-400 dark:text-slate-500 text-xs leading-relaxed">{item.desc}</p>
                 </motion.div>
               ))}
             </div>
@@ -140,12 +140,12 @@ export default function Investor() {
       </section>
 
       {/* CTA */}
-      <section className="py-24 bg-slate-50">
+      <section className="py-24 bg-slate-50 dark:bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-green-600 rounded-[3rem] p-12 md:p-20 text-center text-white relative overflow-hidden">
+          <div className="bg-green-600 dark:bg-green-700 rounded-[3rem] p-12 md:p-20 text-center text-white relative overflow-hidden">
             <div className="relative z-10 max-w-2xl mx-auto">
               <h2 className="text-4xl font-bold mb-8">Start Your Investment Journey</h2>
-              <p className="text-green-50 text-lg mb-10">Join a network of investors who value transparency as much as performance. Get in touch with our team for a detailed prospectus.</p>
+              <p className="text-green-50 dark:text-green-100 text-lg mb-10">Join a network of investors who value transparency as much as performance. Get in touch with our team for a detailed prospectus.</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link 
                   to="/contact"

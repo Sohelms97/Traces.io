@@ -186,7 +186,7 @@ export default function Traceability() {
       </section>
 
       {tracedProduct ? (
-        <section className="py-24 bg-slate-50 min-h-screen">
+        <section className="py-24 bg-slate-50 dark:bg-slate-950 min-h-screen">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
               {/* Product Info Card */}
@@ -194,27 +194,27 @@ export default function Traceability() {
                 <motion.div 
                   initial={{ opacity: 0, x: -30 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-blue-900/5 border border-slate-100 sticky top-24"
+                  className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-xl shadow-blue-900/5 border border-slate-100 dark:border-slate-800 sticky top-24"
                 >
                   <div className="flex items-center justify-between mb-8">
                     <div>
-                      <span className="text-xs font-bold text-green-600 uppercase tracking-widest">{tracedProduct.category}</span>
-                      <h2 className="text-3xl font-bold text-blue-950 mt-1">{tracedProduct.name}</h2>
+                      <span className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-widest">{tracedProduct.category}</span>
+                      <h2 className="text-3xl font-bold text-blue-950 dark:text-white mt-1">{tracedProduct.name}</h2>
                     </div>
-                    <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-blue-950 border border-slate-100">
+                    <div className="w-14 h-14 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-blue-950 dark:text-white border border-slate-100 dark:border-slate-700">
                       <QrCode size={28} />
                     </div>
                   </div>
                   
                   <div className="space-y-6 mb-8">
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Product ID</span>
-                        <span className="text-sm font-bold text-blue-950">{tracedProduct.id}</span>
+                      <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block mb-1">Product ID</span>
+                        <span className="text-sm font-bold text-blue-950 dark:text-white">{tracedProduct.id}</span>
                       </div>
-                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Batch #</span>
-                        <span className="text-sm font-bold text-blue-950">{tracedProduct.batch}</span>
+                      <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block mb-1">Batch #</span>
+                        <span className="text-sm font-bold text-blue-950 dark:text-white">{tracedProduct.batch}</span>
                       </div>
                     </div>
 
@@ -226,20 +226,20 @@ export default function Traceability() {
                         { label: "Harvest Date", value: tracedProduct.harvestDate },
                         { label: "Temp Range", value: tracedProduct.tempRange },
                       ].map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-3 border-b border-slate-50 last:border-0">
-                          <span className="text-sm text-slate-500">{item.label}</span>
-                          <span className="text-sm font-semibold text-blue-950">{item.value}</span>
+                        <div key={idx} className="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-800 last:border-0">
+                          <span className="text-sm text-slate-500 dark:text-slate-400">{item.label}</span>
+                          <span className="text-sm font-semibold text-blue-950 dark:text-white">{item.value}</span>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="p-6 bg-blue-950 rounded-3xl text-center text-white">
-                    <div className="w-32 h-32 bg-white mx-auto mb-4 flex items-center justify-center rounded-2xl p-2">
-                      <QrCode size={100} className="text-blue-950" />
+                  <div className="p-6 bg-blue-950 dark:bg-slate-800 rounded-3xl text-center text-white">
+                    <div className="w-32 h-32 bg-white dark:bg-slate-700 mx-auto mb-4 flex items-center justify-center rounded-2xl p-2">
+                      <QrCode size={100} className="text-blue-950 dark:text-white" />
                     </div>
                     <h4 className="font-bold mb-1">Digital Passport</h4>
-                    <p className="text-xs text-blue-200/60">Scan to share this traceability report</p>
+                    <p className="text-xs text-blue-200/60 dark:text-slate-400">Scan to share this traceability report</p>
                   </div>
                 </motion.div>
               </div>
@@ -247,22 +247,22 @@ export default function Traceability() {
               {/* Timeline */}
               <div className="lg:col-span-2">
                 <div className="flex items-center justify-between mb-12">
-                  <h2 className="text-3xl font-bold text-blue-950">Journey Timeline</h2>
+                  <h2 className="text-3xl font-bold text-blue-950 dark:text-white">Journey Timeline</h2>
                   <div className="flex gap-4 text-xs font-bold">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                      <span>Completed</span>
+                      <span className="text-slate-600 dark:text-slate-400">Completed</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                      <span>In Transit</span>
+                      <span className="text-slate-600 dark:text-slate-400">In Transit</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="relative">
                   {/* Vertical Line */}
-                  <div className="absolute left-7 top-0 bottom-0 w-px bg-slate-200 hidden md:block" />
+                  <div className="absolute left-7 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800 hidden md:block" />
 
                   <div className="space-y-12">
                     {steps.map((step, i) => (
@@ -280,44 +280,44 @@ export default function Traceability() {
                         </div>
 
                         {/* Content Card */}
-                        <div className="flex-1 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                        <div className="flex-1 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md transition-shadow">
                           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
                             <div>
                               <div className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border mb-3 ${getStatusBadge(step.status)}`}>
                                 {step.status}
                               </div>
-                              <h3 className="text-2xl font-bold text-blue-950">{step.title}</h3>
+                              <h3 className="text-2xl font-bold text-blue-950 dark:text-white">{step.title}</h3>
                             </div>
                             <div className="text-right sm:text-right">
-                              <div className="text-lg font-bold text-blue-950 font-mono">{step.date}</div>
-                              <div className="text-sm text-slate-400 flex items-center justify-end gap-1">
+                              <div className="text-lg font-bold text-blue-950 dark:text-white font-mono">{step.date}</div>
+                              <div className="text-sm text-slate-400 dark:text-slate-500 flex items-center justify-end gap-1">
                                 <MapPin size={14} />
                                 {step.location}
                               </div>
                             </div>
                           </div>
 
-                          <p className="text-slate-600 mb-6 leading-relaxed">
+                          <p className="text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
                             {step.description}
                           </p>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-50">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-50 dark:border-slate-800">
                             <div>
-                              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-2">Responsible Party</span>
+                              <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block mb-2">Responsible Party</span>
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-blue-950">
+                                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-blue-950 dark:text-white">
                                   <Users size={16} />
                                 </div>
-                                <span className="text-sm font-bold text-blue-950">{step.party}</span>
+                                <span className="text-sm font-bold text-blue-950 dark:text-white">{step.party}</span>
                               </div>
                             </div>
                             
                             {step.docs.length > 0 && (
                               <div>
-                                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-2">Verified Documents</span>
+                                <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block mb-2">Verified Documents</span>
                                 <div className="flex flex-wrap gap-2">
                                   {step.docs.map((doc, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-xl text-[10px] text-blue-900 font-bold border border-slate-100 hover:bg-green-50 hover:text-green-700 hover:border-green-200 cursor-pointer transition-all">
+                                    <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-[10px] text-blue-900 dark:text-blue-400 font-bold border border-slate-100 dark:border-slate-700 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-700 dark:hover:text-green-400 hover:border-green-200 dark:hover:border-green-800 cursor-pointer transition-all">
                                       <FileText size={12} />
                                       {doc}
                                     </div>
@@ -336,13 +336,13 @@ export default function Traceability() {
           </div>
         </section>
       ) : (
-        <section className="py-32 bg-white text-center">
+        <section className="py-32 bg-white dark:bg-slate-950 text-center">
           <div className="max-w-2xl mx-auto px-4">
-            <div className="w-32 h-32 bg-slate-50 rounded-[2.5rem] flex items-center justify-center text-slate-200 mx-auto mb-10 rotate-12">
+            <div className="w-32 h-32 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] flex items-center justify-center text-slate-200 dark:text-slate-800 mx-auto mb-10 rotate-12">
               <Search size={64} />
             </div>
-            <h2 className="text-4xl font-bold text-blue-950 mb-6 tracking-tight">Ready to verify your shipment?</h2>
-            <p className="text-slate-500 text-lg mb-10 leading-relaxed">
+            <h2 className="text-4xl font-bold text-blue-950 dark:text-white mb-6 tracking-tight">Ready to verify your shipment?</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-lg mb-10 leading-relaxed">
               Our end-to-end traceability system provides absolute transparency. Enter a Product ID or Container Number above to access real-time logistics data, quality certificates, and origin verification.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
@@ -351,10 +351,10 @@ export default function Traceability() {
                 { icon: <ShieldCheck className="text-green-500" />, title: "Quality", desc: "Inspection reports" },
                 { icon: <Truck className="text-amber-500" />, title: "Logistics", desc: "Real-time tracking" },
               ].map((item, i) => (
-                <div key={i} className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                <div key={i} className="p-6 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl">
                   <div className="mb-4">{item.icon}</div>
-                  <h4 className="font-bold text-blue-950 mb-1">{item.title}</h4>
-                  <p className="text-xs text-slate-500">{item.desc}</p>
+                  <h4 className="font-bold text-blue-950 dark:text-white mb-1">{item.title}</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-500">{item.desc}</p>
                 </div>
               ))}
             </div>

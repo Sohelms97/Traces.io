@@ -30,20 +30,20 @@ export default function Team() {
   return (
     <div className="pt-20">
       {/* Header */}
-      <section className="bg-slate-50 py-24">
+      <section className="bg-slate-50 dark:bg-slate-900 py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-5xl font-bold text-blue-950 mb-6"
+            className="text-5xl font-bold text-blue-950 dark:text-white mb-6"
           >
-            The People Behind <span className="text-green-600">TRACES</span>
+            The People Behind <span className="text-green-600 dark:text-green-400">TRACES</span>
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-xl text-slate-600 max-w-2xl mx-auto"
+            className="text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto"
           >
             A diverse team of experts dedicated to bringing transparency and trust to the global food supply chain.
           </motion.p>
@@ -54,9 +54,9 @@ export default function Team() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 space-y-32">
         {/* Leadership */}
         <section>
-          <h2 className="text-3xl font-bold text-blue-950 mb-12 flex items-center gap-4">
+          <h2 className="text-3xl font-bold text-blue-950 dark:text-white mb-12 flex items-center gap-4">
             Leadership Team
-            <div className="h-px bg-slate-200 flex-1" />
+            <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {team.leadership.map((member, i) => (
@@ -67,9 +67,9 @@ export default function Team() {
 
         {/* Operations */}
         <section>
-          <h2 className="text-3xl font-bold text-blue-950 mb-12 flex items-center gap-4">
+          <h2 className="text-3xl font-bold text-blue-950 dark:text-white mb-12 flex items-center gap-4">
             Operations Team
-            <div className="h-px bg-slate-200 flex-1" />
+            <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {team.operations.map((member, i) => (
@@ -80,9 +80,9 @@ export default function Team() {
 
         {/* Tech & Data */}
         <section>
-          <h2 className="text-3xl font-bold text-blue-950 mb-12 flex items-center gap-4">
+          <h2 className="text-3xl font-bold text-blue-950 dark:text-white mb-12 flex items-center gap-4">
             Tech & Data Team
-            <div className="h-px bg-slate-200 flex-1" />
+            <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
             {team.tech.map((member, i) => (
@@ -93,17 +93,17 @@ export default function Team() {
       </div>
 
       {/* CTA Section */}
-      <section className="py-24 bg-slate-50">
+      <section className="py-24 bg-slate-50 dark:bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-green-600 rounded-[3rem] p-12 md:p-20 text-center text-white relative overflow-hidden">
+          <div className="bg-green-600 dark:bg-green-700 rounded-[3rem] p-12 md:p-20 text-center text-white relative overflow-hidden">
             <div className="relative z-10 max-w-2xl mx-auto">
               <h2 className="text-4xl font-bold mb-8">Join the TRACES Network</h2>
-              <p className="text-green-50 text-lg mb-10">Whether you're a supplier, customer, or potential investor, we'd love to hear from you. Let's build a more transparent future together.</p>
+              <p className="text-green-50 dark:text-green-100 text-lg mb-10">Whether you're a supplier, customer, or potential investor, we'd love to hear from you. Let's build a more transparent future together.</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link to="/contact" className="bg-white text-green-700 px-10 py-4 rounded-full font-bold transition-all">
+                <Link to="/contact" className="bg-white text-green-700 px-10 py-4 rounded-full font-bold transition-all hover:bg-green-50">
                   Contact Our Team
                 </Link>
-                <Link to="/investor" className="bg-green-700 text-white border border-green-500 px-10 py-4 rounded-full font-bold transition-all">
+                <Link to="/investor" className="bg-green-700 text-white border border-green-500 px-10 py-4 rounded-full font-bold transition-all hover:bg-green-800">
                   Investor Portal
                 </Link>
               </div>
@@ -124,7 +124,7 @@ function TeamCard({ member, delay }: any) {
       transition={{ delay }}
       className="group"
     >
-      <div className="relative mb-6 rounded-[2rem] overflow-hidden aspect-[4/5] bg-slate-100">
+      <div className="relative mb-6 rounded-[2rem] overflow-hidden aspect-[4/5] bg-slate-100 dark:bg-slate-800">
         <img 
           src={member.image} 
           alt={member.name} 
@@ -142,9 +142,9 @@ function TeamCard({ member, delay }: any) {
           </div>
         </div>
       </div>
-      <h3 className="text-2xl font-bold text-blue-950 mb-1">{member.name}</h3>
-      <p className="text-green-600 font-semibold text-sm mb-4 uppercase tracking-wider">{member.role}</p>
-      <p className="text-slate-500 text-sm leading-relaxed">{member.bio}</p>
+      <h3 className="text-2xl font-bold text-blue-950 dark:text-white mb-1">{member.name}</h3>
+      <p className="text-green-600 dark:text-green-400 font-semibold text-sm mb-4 uppercase tracking-wider">{member.role}</p>
+      <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">{member.bio}</p>
     </motion.div>
   );
 }

@@ -42,12 +42,12 @@ export default function About() {
       </section>
 
       {/* Company Story */}
-      <section className="py-24 bg-white">
+      <section className="py-24 bg-white dark:bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <motion.div {...fadeInUp}>
-              <h2 className="text-4xl font-bold text-blue-950 mb-8">How It All Started</h2>
-              <div className="space-y-6 text-slate-600 text-lg leading-relaxed">
+              <h2 className="text-4xl font-bold text-blue-950 dark:text-white mb-8">How It All Started</h2>
+              <div className="space-y-6 text-slate-600 dark:text-slate-400 text-lg leading-relaxed">
                 <p>
                   Farmers Market Asia was founded on a simple yet powerful premise: consumers and investors deserve to know exactly where their food comes from. In an era of complex global logistics, the origin of our food had become a mystery.
                 </p>
@@ -77,30 +77,30 @@ export default function About() {
       </section>
 
       {/* Mission & Vision */}
-      <section className="py-24 bg-slate-50">
+      <section className="py-24 bg-slate-50 dark:bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             <motion.div 
               {...fadeInUp}
-              className="bg-white p-12 rounded-[2.5rem] shadow-sm border border-slate-100"
+              className="bg-white dark:bg-slate-800 p-12 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-700"
             >
-              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 mb-8">
+              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400 mb-8">
                 <Target size={32} />
               </div>
-              <h3 className="text-3xl font-bold text-blue-950 mb-6">Our Mission</h3>
-              <p className="text-slate-600 text-lg leading-relaxed">
+              <h3 className="text-3xl font-bold text-blue-950 dark:text-white mb-6">Our Mission</h3>
+              <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">
                 To empower consumers and investors with real-time, verified data about every product we handle, ensuring the highest standards of food safety and ethical trade practices across Asia and beyond.
               </p>
             </motion.div>
             <motion.div 
               {...fadeInUp}
-              className="bg-white p-12 rounded-[2.5rem] shadow-sm border border-slate-100"
+              className="bg-white dark:bg-slate-800 p-12 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-700"
             >
-              <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center text-green-600 mb-8">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center text-green-600 dark:text-green-400 mb-8">
                 <Eye size={32} />
               </div>
-              <h3 className="text-3xl font-bold text-blue-950 mb-6">Our Vision</h3>
-              <p className="text-slate-600 text-lg leading-relaxed">
+              <h3 className="text-3xl font-bold text-blue-950 dark:text-white mb-6">Our Vision</h3>
+              <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">
                 To become the global benchmark for food traceability, where "TRACES Certified" is synonymous with absolute trust, quality, and sustainability in the international marketplace.
               </p>
             </motion.div>
@@ -109,11 +109,11 @@ export default function About() {
       </section>
 
       {/* Core Values */}
-      <section className="py-24 bg-white">
+      <section className="py-24 bg-white dark:bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-blue-950 mb-4">Our Core Values</h2>
-            <p className="text-slate-500 text-lg">The principles that guide every decision we make.</p>
+            <h2 className="text-4xl font-bold text-blue-950 dark:text-white mb-4">Our Core Values</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-lg">The principles that guide every decision we make.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
@@ -130,11 +130,11 @@ export default function About() {
                 transition={{ delay: i * 0.1 }}
                 className="text-center p-8"
               >
-                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-green-600 mx-auto mb-6 shadow-inner">
+                <div className="w-20 h-20 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center text-green-600 mx-auto mb-6 shadow-inner dark:shadow-slate-800">
                   {value.icon}
                 </div>
-                <h4 className="text-xl font-bold text-blue-950 mb-3">{value.title}</h4>
-                <p className="text-slate-500 text-sm">{value.desc}</p>
+                <h4 className="text-xl font-bold text-blue-950 dark:text-white mb-3">{value.title}</h4>
+                <p className="text-slate-500 dark:text-slate-400 text-sm">{value.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -142,14 +142,14 @@ export default function About() {
       </section>
 
       {/* Timeline */}
-      <section className="py-24 bg-blue-950 text-white overflow-hidden">
+      <section className="py-24 bg-blue-950 dark:bg-slate-900 text-white overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
             <h2 className="text-4xl font-bold mb-4">Our Journey</h2>
             <p className="text-blue-200/60">Milestones that shaped Farmers Market Asia.</p>
           </div>
           <div className="relative">
-            <div className="absolute left-1/2 top-0 bottom-0 w-px bg-blue-800 -translate-x-1/2 hidden md:block" />
+            <div className="absolute left-1/2 top-0 bottom-0 w-px bg-blue-800 dark:bg-slate-800 -translate-x-1/2 hidden md:block" />
             <div className="space-y-12">
               {[
                 { year: "2023", title: "Founding", desc: "Farmers Market Asia established with a focus on regional seafood trade." },
@@ -171,7 +171,7 @@ export default function About() {
                       <p className="text-blue-200/60">{item.desc}</p>
                     </div>
                   </div>
-                  <div className="relative z-10 w-12 h-12 bg-green-500 rounded-full border-4 border-blue-950 flex items-center justify-center">
+                  <div className="relative z-10 w-12 h-12 bg-green-500 rounded-full border-4 border-blue-950 dark:border-slate-900 flex items-center justify-center">
                     <History size={20} className="text-blue-950" />
                   </div>
                   <div className="flex-1 hidden md:block" />
@@ -183,9 +183,9 @@ export default function About() {
       </section>
 
       {/* Why Traceability Matters */}
-      <section className="py-24 bg-white">
+      <section className="py-24 bg-white dark:bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-slate-900 rounded-[3rem] p-12 md:p-20 text-white">
+          <div className="bg-slate-900 dark:bg-slate-900 rounded-[3rem] p-12 md:p-20 text-white border border-slate-800">
             <div className="max-w-3xl">
               <h2 className="text-4xl font-bold mb-8">Why Traceability Matters</h2>
               <div className="space-y-8">
@@ -223,9 +223,9 @@ export default function About() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-slate-50">
+      <section className="py-24 bg-slate-50 dark:bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-blue-950 rounded-[3rem] p-12 md:p-20 text-center text-white relative overflow-hidden">
+          <div className="bg-blue-950 dark:bg-slate-800 rounded-[3rem] p-12 md:p-20 text-center text-white relative overflow-hidden">
             <div className="relative z-10 max-w-2xl mx-auto">
               <h2 className="text-4xl font-bold mb-8">Ready to See TRACES in Action?</h2>
               <p className="text-blue-200/70 text-lg mb-10">Experience the power of full transparency. Explore our traceable products or meet the team behind the platform.</p>
