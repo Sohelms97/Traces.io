@@ -1,16 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-
-const initialContainers = [
-  { id: 'TFC/EX026/25', supplier: 'Tabuk Fisheries', product: 'Sea Bream', origin: 'Saudi Arabia', qty: '12,000 KG', purchaseValue: '280,000', totalCost: '312,360', saleQty: '12,000 KG', totalSales: '322,200', gp: '9,840', roi: '3.15%', status: 'Closed', month: 'Nov 2025' },
-  { id: 'FBIU5326683', supplier: 'Hong Long Seafood', product: 'Keski', origin: 'Vietnam', qty: '3,000 Box', purchaseValue: '100,000', totalCost: '115,036', saleQty: '3,000 Box', totalSales: '131,850', gp: '16,814', roi: '14.62%', status: 'Closed', month: 'Dec 2025' },
-  { id: 'Inv.34', supplier: 'FMA Pakistan', product: 'Squid', origin: 'Pakistan', qty: '2,260 Box', purchaseValue: '280,000', totalCost: '325,890', saleQty: '2,260 Box', totalSales: '312,610', gp: '-13,280', roi: '-4.08%', status: 'Closed', month: 'Dec 2025' },
-  { id: 'SZLU9069865', supplier: 'PAKTHAI IMPEX', product: 'Rohu', origin: 'Thailand', qty: '27,000 KG', purchaseValue: '150,000', totalCost: '165,000', saleQty: '0', totalSales: '0', gp: '0', roi: '0%', status: 'Open', month: 'Jan 2026' },
-  { id: 'OTPU6690769', supplier: 'QUE KY FOODS', product: 'Pangasius Fillet', origin: 'Vietnam', qty: '25,000 KG', purchaseValue: '110,000', totalCost: '121,477', saleQty: '0', totalSales: '0', gp: '0', roi: '0%', status: 'Open', month: 'Feb 2026' },
-];
+import { useAuth } from '../contexts/AuthContext';
 
 export default function ContainerManagement() {
-  const [containers, setContainers] = useState(initialContainers);
+  const [containers, setContainers] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedContainer, setSelectedContainer] = useState<any>(null);
@@ -18,6 +11,30 @@ export default function ContainerManagement() {
   const [containerToDelete, setContainerToDelete] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
+  const { isAdmin } = useAuth();
+
+  useEffect(() => {
+    const stored = localStorage.getItem('traces_containers');
+    const initialContainers = [
+      { id: 'TFC/EX026/25', supplier: 'Tabuk Fisheries', product: 'Sea Bream', origin: 'Saudi Arabia', qty: '12,000 KG', purchaseValue: '280,000', totalCost: '312,360', saleQty: '12,000 KG', totalSales: '322,200', gp: '9,840', roi: '3.15%', status: 'Closed', month: 'Nov 2025' },
+      { id: 'FBIU5326683', supplier: 'Hong Long Seafood', product: 'Keski', origin: 'Vietnam', qty: '3,000 Box', purchaseValue: '100,000', totalCost: '115,036', saleQty: '3,000 Box', totalSales: '131,850', gp: '16,814', roi: '14.62%', status: 'Closed', month: 'Dec 2025' },
+      { id: 'Inv.34', supplier: 'FMA Pakistan', product: 'Squid', origin: 'Pakistan', qty: '2,260 Box', purchaseValue: '280,000', totalCost: '325,890', saleQty: '2,260 Box', totalSales: '312,610', gp: '-13,280', roi: '-4.08%', status: 'Closed', month: 'Dec 2025' },
+      { id: 'SZLU9069865', supplier: 'PAKTHAI IMPEX', product: 'Rohu', origin: 'Thailand', qty: '27,000 KG', purchaseValue: '150,000', totalCost: '165,000', saleQty: '0', totalSales: '0', gp: '0', roi: '0%', status: 'Open', month: 'Jan 2026' },
+      { id: 'OTPU6690769', supplier: 'QUE KY FOODS', product: 'Pangasius Fillet', origin: 'Vietnam', qty: '25,000 KG', purchaseValue: '110,000', totalCost: '121,477', saleQty: '0', totalSales: '0', gp: '0', roi: '0%', status: 'Open', month: 'Feb 2026' },
+    ];
+
+    if (stored) {
+      setContainers(JSON.parse(stored));
+    } else {
+      setContainers(initialContainers);
+      localStorage.setItem('traces_containers', JSON.stringify(initialContainers));
+    }
+  }, []);
+
+  const saveContainers = (updated: any[]) => {
+    setContainers(updated);
+    localStorage.setItem('traces_containers', JSON.stringify(updated));
+  };
 
   // Form State
   const [formData, setFormData] = useState({
@@ -31,9 +48,9 @@ export default function ContainerManagement() {
   });
 
   const filteredContainers = containers.filter(c => {
-    const matchesSearch = c.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         c.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         c.product.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (c.id || '').toLowerCase().includes((searchTerm || '').toLowerCase()) || 
+                         (c.supplier || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+                         (c.product || '').toLowerCase().includes((searchTerm || '').toLowerCase());
     const matchesStatus = filterStatus === 'All' || c.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -73,24 +90,24 @@ export default function ContainerManagement() {
 
   const handleSave = () => {
     if (editingContainer) {
-      setContainers(containers.map(c => c.id === editingContainer.id ? { ...c, ...formData } : c));
+      saveContainers(containers.map(c => c.id === editingContainer.id ? { ...c, ...formData } : c));
     } else {
       const newContainer = {
         ...formData,
-        totalCost: (parseFloat(formData.purchaseValue.replace(/,/g, '')) * 1.1).toLocaleString(),
+        totalCost: (parseFloat((formData.purchaseValue || '0').replace(/,/g, '')) * 1.1).toLocaleString(),
         saleQty: '0',
         totalSales: '0',
         gp: '0',
         roi: '0%',
         month: new Date().toLocaleString('default', { month: 'short', year: 'numeric' })
       };
-      setContainers([newContainer, ...containers]);
+      saveContainers([newContainer, ...containers]);
     }
     setIsModalOpen(false);
   };
 
   const confirmDelete = () => {
-    setContainers(containers.filter(c => c.id !== containerToDelete.id));
+    saveContainers(containers.filter(c => c.id !== containerToDelete.id));
     setIsDeleteModalOpen(false);
     setContainerToDelete(null);
   };
@@ -124,12 +141,14 @@ export default function ContainerManagement() {
           <button className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
             <i className="fa-solid fa-file-excel text-green-600"></i> Export Excel
           </button>
-          <button 
-            onClick={handleOpenNewModal}
-            className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors shadow-sm"
-          >
-            <i className="fa-solid fa-plus"></i> New Container
-          </button>
+          {isAdmin && (
+            <button 
+              onClick={handleOpenNewModal}
+              className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors shadow-sm"
+            >
+              <i className="fa-solid fa-plus"></i> New Container
+            </button>
+          )}
         </div>
       </div>
 
@@ -154,11 +173,11 @@ export default function ContainerManagement() {
             <tbody className="divide-y divide-slate-100 text-sm">
               {filteredContainers.map((row, i) => (
                 <tr key={i} className="hover:bg-slate-50 transition-colors group">
-                  <td className="px-6 py-4 font-bold text-slate-700">{row.id}</td>
-                  <td className="px-6 py-4 text-slate-600">{row.supplier}</td>
-                  <td className="px-6 py-4 text-slate-600">{row.product}</td>
-                  <td className="px-6 py-4 text-slate-500">{row.qty}</td>
-                  <td className="px-6 py-4 text-right font-medium text-slate-700">{row.purchaseValue}</td>
+                  <td className="px-6 py-4 font-bold text-slate-700">{row.id || row.container_number}</td>
+                  <td className="px-6 py-4 text-slate-600">{row.supplier || row.supplier_name}</td>
+                  <td className="px-6 py-4 text-slate-600">{row.product || row.product_name}</td>
+                  <td className="px-6 py-4 text-slate-500">{row.qty || row.total_quantity}</td>
+                  <td className="px-6 py-4 text-right font-medium text-slate-700">{row.purchaseValue || row.total_amount}</td>
                   <td className="px-6 py-4 text-right font-medium text-slate-700">{row.totalSales}</td>
                   <td className="px-6 py-4 text-right font-medium text-slate-700">{row.gp}</td>
                   <td className="px-6 py-4 text-right">
@@ -181,18 +200,22 @@ export default function ContainerManagement() {
                       >
                         <i className="fa-solid fa-eye"></i>
                       </button>
-                      <button 
-                        onClick={() => handleOpenEditModal(row)}
-                        className="p-1.5 text-slate-400 hover:text-green-600 transition-colors" title="Edit"
-                      >
-                        <i className="fa-solid fa-pen-to-square"></i>
-                      </button>
-                      <button 
-                        onClick={() => handleOpenDeleteModal(row)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 transition-colors" title="Delete"
-                      >
-                        <i className="fa-solid fa-trash-can"></i>
-                      </button>
+                      {isAdmin && (
+                        <>
+                          <button 
+                            onClick={() => handleOpenEditModal(row)}
+                            className="p-1.5 text-slate-400 hover:text-green-600 transition-colors" title="Edit"
+                          >
+                            <i className="fa-solid fa-pen-to-square"></i>
+                          </button>
+                          <button 
+                            onClick={() => handleOpenDeleteModal(row)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 transition-colors" title="Delete"
+                          >
+                            <i className="fa-solid fa-trash-can"></i>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

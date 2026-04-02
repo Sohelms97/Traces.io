@@ -1,22 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-
-const salesOrders = [
-  { id: 'INV-101', customer: 'Abdullah Bin Hathboor', product: 'Sea Bream', container: 'TFC/EX026/25', qty: '5,000 KG', price: '26.85', total: '134,250', type: 'Credit', status: 'Paid', due: 'Dec 30, 2025' },
-  { id: 'INV-102', customer: 'Bait Al Qaseed', product: 'Sea Bream', container: 'TFC/EX026/25', qty: '7,000 KG', price: '26.85', total: '187,950', type: 'Credit', status: 'Paid', due: 'Dec 30, 2025' },
-  { id: 'INV-103', customer: 'Fresh Shrimp', product: 'Keski', container: 'FBIU5326683', qty: '2,850 Box', price: '46.26', total: '131,850', type: 'Cash', status: 'Paid', due: 'Jan 10, 2026' },
-  { id: 'INV-104', customer: 'Abdullah Bin Hathboor', product: 'Squid', container: 'Inv.34', qty: '2,260 Box', price: '138.32', total: '312,610', type: 'Credit', status: 'Paid', due: 'Jan 15, 2026' },
-  { id: 'INV-105', customer: 'Bait Al Qaseed', product: 'Rohu', container: 'SZLU9069865', qty: '5,000 KG', price: '7.50', total: '37,500', type: 'Credit', status: 'Outstanding', due: 'Feb 28, 2026' },
-];
-
-const customers = [
-  { name: 'Abdullah Bin Hathboor', orders: 12, value: '1,450,000', balance: '0', status: 'Active' },
-  { name: 'Bait Al Qaseed', orders: 8, value: '820,000', balance: '37,500', status: 'Active' },
-  { name: 'Fresh Shrimp', orders: 5, value: '450,000', balance: '0', status: 'Active' },
-];
+import { useAuth } from '../contexts/AuthContext';
 
 export default function SalesManagement() {
   const [activeTab, setActiveTab] = useState<'orders' | 'customers' | 'receivables'>('orders');
+  const [orders, setOrders] = useState<any[]>([]);
+  const { isAdmin } = useAuth();
+
+  useEffect(() => {
+    const stored = localStorage.getItem('traces_sales');
+    const defaultOrders = [
+      { id: 'INV-101', customer: 'Abdullah Bin Hathboor', product: 'Sea Bream', container: 'TFC/EX026/25', qty: '5,000 KG', price: '26.85', total: '134,250', type: 'Credit', status: 'Paid', due: 'Dec 30, 2025' },
+      { id: 'INV-102', customer: 'Bait Al Qaseed', product: 'Sea Bream', container: 'TFC/EX026/25', qty: '7,000 KG', price: '26.85', total: '187,950', type: 'Credit', status: 'Paid', due: 'Dec 30, 2025' },
+      { id: 'INV-103', customer: 'Fresh Shrimp', product: 'Keski', container: 'FBIU5326683', qty: '2,850 Box', price: '46.26', total: '131,850', type: 'Cash', status: 'Paid', due: 'Jan 10, 2026' },
+      { id: 'INV-104', customer: 'Abdullah Bin Hathboor', product: 'Squid', container: 'Inv.34', qty: '2,260 Box', price: '138.32', total: '312,610', type: 'Credit', status: 'Paid', due: 'Jan 15, 2026' },
+      { id: 'INV-105', customer: 'Bait Al Qaseed', product: 'Rohu', container: 'SZLU9069865', qty: '5,000 KG', price: '7.50', total: '37,500', type: 'Credit', status: 'Outstanding', due: 'Feb 28, 2026' },
+    ];
+
+    if (stored) {
+      setOrders(JSON.parse(stored));
+    } else {
+      setOrders(defaultOrders);
+      localStorage.setItem('traces_sales', JSON.stringify(defaultOrders));
+    }
+  }, []);
+
+  const customers = [
+    { name: 'Abdullah Bin Hathboor', orders: 12, value: '1,450,000', balance: '0', status: 'Active' },
+    { name: 'Bait Al Qaseed', orders: 8, value: '820,000', balance: '37,500', status: 'Active' },
+    { name: 'Fresh Shrimp', orders: 5, value: '450,000', balance: '0', status: 'Active' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -53,12 +66,16 @@ export default function SalesManagement() {
           />
         </div>
         <div className="flex items-center gap-3">
-          <button className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
-            <i className="fa-solid fa-receipt"></i> Payment Receipt
-          </button>
-          <button className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors shadow-sm">
-            <i className="fa-solid fa-plus"></i> New Sales Invoice
-          </button>
+          {isAdmin && (
+            <>
+              <button className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
+                <i className="fa-solid fa-receipt"></i> Payment Receipt
+              </button>
+              <button className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors shadow-sm">
+                <i className="fa-solid fa-plus"></i> New Sales Invoice
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -80,14 +97,14 @@ export default function SalesManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {salesOrders.map((order, i) => (
+                {orders.map((order, i) => (
                   <tr key={i} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-6 py-4 font-bold text-slate-700">{order.id}</td>
-                    <td className="px-6 py-4 text-slate-600">{order.customer}</td>
-                    <td className="px-6 py-4 text-slate-600">{order.product}</td>
-                    <td className="px-6 py-4 text-blue-600 font-medium hover:underline cursor-pointer">{order.container}</td>
-                    <td className="px-6 py-4 text-right text-slate-500">{order.qty}</td>
-                    <td className="px-6 py-4 text-right font-bold text-[#1F4E79]">{order.total}</td>
+                    <td className="px-6 py-4 font-bold text-slate-700">{order.id || order.invoice_number}</td>
+                    <td className="px-6 py-4 text-slate-600">{order.customer || order.customer_name}</td>
+                    <td className="px-6 py-4 text-slate-600">{order.product || order.product_name}</td>
+                    <td className="px-6 py-4 text-blue-600 font-medium hover:underline cursor-pointer">{order.container || order.container_number}</td>
+                    <td className="px-6 py-4 text-right text-slate-500">{order.qty || order.quantity}</td>
+                    <td className="px-6 py-4 text-right font-bold text-[#1F4E79]">{order.total || order.total_amount}</td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
                         ${order.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}
@@ -98,7 +115,9 @@ export default function SalesManagement() {
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"><i className="fa-solid fa-eye"></i></button>
-                        <button className="p-1.5 text-slate-400 hover:text-green-600 transition-colors"><i className="fa-solid fa-print"></i></button>
+                        {isAdmin && (
+                          <button className="p-1.5 text-slate-400 hover:text-green-600 transition-colors"><i className="fa-solid fa-print"></i></button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -133,8 +152,12 @@ export default function SalesManagement() {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"><i className="fa-solid fa-user-pen"></i></button>
-                        <button className="p-1.5 text-slate-400 hover:text-green-600 transition-colors"><i className="fa-solid fa-file-lines"></i></button>
+                        {isAdmin && (
+                          <>
+                            <button className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"><i className="fa-solid fa-user-pen"></i></button>
+                            <button className="p-1.5 text-slate-400 hover:text-green-600 transition-colors"><i className="fa-solid fa-file-lines"></i></button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

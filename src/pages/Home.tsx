@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { ShieldCheck, Users, Cpu, ArrowRight, Anchor, Leaf, Box, Truck, Warehouse, CheckCircle2, TrendingUp, Globe, Database } from "lucide-react";
+import { ShieldCheck, Users, Cpu, ArrowRight, Anchor, Leaf, Box, Truck, Warehouse, CheckCircle2, TrendingUp, Globe, Database, LayoutDashboard } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const fadeInUp = {
@@ -44,6 +44,13 @@ export default function Home() {
               >
                 Explore Products
                 <ArrowRight size={20} />
+              </Link>
+              <Link 
+                to="/erp/dashboard" 
+                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full font-bold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20"
+              >
+                Access ERP
+                <LayoutDashboard size={20} />
               </Link>
               <Link 
                 to="/team" 

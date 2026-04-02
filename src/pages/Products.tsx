@@ -136,7 +136,7 @@ export default function Products() {
     (activeCategory === "All" || p.category === activeCategory) &&
     (activeOrigin === "All" || p.origin === activeOrigin) &&
     (activeSupplier === "All" || p.supplier === activeSupplier) &&
-    (p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.id.toLowerCase().includes(searchQuery.toLowerCase()))
+    ((p.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()) || (p.id || '').toLowerCase().includes((searchQuery || '').toLowerCase()))
   );
 
   return (

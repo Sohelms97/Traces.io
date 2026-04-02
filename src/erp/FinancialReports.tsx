@@ -4,6 +4,9 @@ import { motion, AnimatePresence } from 'motion/react';
 const reportTabs = [
   { id: 'container', name: 'Container-wise P&L', icon: 'fa-box' },
   { id: 'monthly', name: 'Monthly Summary', icon: 'fa-calendar-days' },
+  { id: 'aging', name: 'Aging Summary', icon: 'fa-clock' },
+  { id: 'performance', name: 'Performance Analysis', icon: 'fa-chart-line' },
+  { id: 'cashflow', name: 'Cash Flow', icon: 'fa-money-bill-transfer' },
   { id: 'supplier', name: 'Supplier-wise', icon: 'fa-truck-field' },
   { id: 'customer', name: 'Customer-wise', icon: 'fa-users' },
   { id: 'investor', name: 'Investor ROI', icon: 'fa-hand-holding-dollar' },
@@ -26,22 +29,106 @@ const monthlySummary = [
 
 export default function FinancialReports() {
   const [activeTab, setActiveTab] = useState('container');
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+  const [aiInsights, setAiInsights] = useState<string | null>(null);
+
+  const generateAIInsights = async () => {
+    const apiKey = localStorage.getItem('traces_api_key');
+    if (!apiKey) {
+      alert('Please add your Anthropic API Key in Settings -> Integrations first.');
+      return;
+    }
+
+    setIsGeneratingInsights(true);
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "dangerously-allow-browser": "true"
+        },
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20240620",
+          max_tokens: 1000,
+          messages: [{
+            role: "user",
+            content: `Analyze this ERP financial data and provide 3-5 strategic insights and recommendations for Farmers Market Asia. 
+            Data Summary:
+            - Monthly GP is averaging 26.6%
+            - Some containers (Inv.34) are showing negative ROI (-4.08%)
+            - Cash flow is tight due to high container volume in Dec/Jan.
+            Return the insights in a clear, professional bulleted list.`
+          }]
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to generate insights');
+      const result = await response.json();
+      setAiInsights(result.content[0].text);
+    } catch (error) {
+      console.error("AI Insights error:", error);
+      alert('Failed to generate AI insights. Please check your API key.');
+    } finally {
+      setIsGeneratingInsights(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Tabs */}
-      <div className="flex flex-wrap items-center gap-2 bg-slate-200/50 p-1 rounded-xl w-fit">
-        {reportTabs.map(tab => (
-          <button 
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-white text-[#1F4E79] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            <i className={`fa-solid ${tab.icon}`}></i>
-            {tab.name}
-          </button>
-        ))}
+      {/* Header & AI Insights Button */}
+      <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center gap-2 bg-slate-200/50 p-1 rounded-xl w-fit">
+          {reportTabs.map(tab => (
+            <button 
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-white text-[#1F4E79] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <i className={`fa-solid ${tab.icon}`}></i>
+              {tab.name}
+            </button>
+          ))}
+        </div>
+        <button 
+          onClick={generateAIInsights}
+          disabled={isGeneratingInsights}
+          className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:shadow-lg hover:shadow-purple-500/20 transition-all disabled:opacity-50"
+        >
+          <i className={`fa-solid ${isGeneratingInsights ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'}`}></i>
+          {isGeneratingInsights ? 'Analyzing Data...' : 'AI Insights'}
+        </button>
       </div>
+
+      {/* AI Insights Display */}
+      <AnimatePresence>
+        {aiInsights && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-100 p-6 rounded-[2rem] relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 p-4">
+              <button onClick={() => setAiInsights(null)} className="text-slate-400 hover:text-slate-600">
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <div className="flex gap-4">
+              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-purple-600 text-xl shadow-sm shrink-0">
+                <i className="fa-solid fa-robot"></i>
+              </div>
+              <div className="space-y-3">
+                <h3 className="text-lg font-bold text-slate-800">AI Strategic Insights</h3>
+                <div className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">
+                  {aiInsights}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Filters & Actions */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
@@ -128,6 +215,27 @@ export default function FinancialReports() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {activeTab === 'aging' && (
+          <div className="p-12 text-center text-slate-400">
+            <i className="fa-solid fa-clock text-4xl mb-4"></i>
+            <p className="font-bold">Aging Summary Report Coming Soon</p>
+          </div>
+        )}
+
+        {activeTab === 'performance' && (
+          <div className="p-12 text-center text-slate-400">
+            <i className="fa-solid fa-chart-line text-4xl mb-4"></i>
+            <p className="font-bold">Performance Analysis Coming Soon</p>
+          </div>
+        )}
+
+        {activeTab === 'cashflow' && (
+          <div className="p-12 text-center text-slate-400">
+            <i className="fa-solid fa-money-bill-transfer text-4xl mb-4"></i>
+            <p className="font-bold">Cash Flow Statement Coming Soon</p>
           </div>
         )}
 

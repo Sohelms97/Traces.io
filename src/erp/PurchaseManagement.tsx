@@ -1,25 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-
-const initialPOs = [
-  { id: 'PO-2025-001', supplier: 'Tabuk Fisheries', product: 'Sea Bream', qty: '12,000 KG', unitPrice: '23.35', total: '280,200', status: 'Fully Paid', date: 'Oct 15, 2025' },
-  { id: 'PO-2025-002', supplier: 'Hong Long Seafood', product: 'Keski', qty: '3,000 Box', unitPrice: '33.33', total: '100,000', status: 'Fully Paid', date: 'Nov 05, 2025' },
-  { id: 'PO-2025-003', supplier: 'FMA Pakistan', product: 'Squid', qty: '2,260 Box', unitPrice: '123.89', total: '280,000', status: '70% Paid', date: 'Nov 12, 2025' },
-  { id: 'PO-2026-001', supplier: 'PAKTHAI IMPEX', product: 'Rohu', qty: '27,000 KG', unitPrice: '5.55', total: '150,000', status: 'Advance Paid', date: 'Jan 02, 2026' },
-  { id: 'PO-2026-002', supplier: 'QUE KY FOODS', product: 'Pangasius Fillet', qty: '25,000 KG', unitPrice: '4.40', total: '110,000', status: 'Advance Paid', date: 'Feb 10, 2026' },
-];
-
-const suppliers = [
-  { name: 'Tabuk Fisheries', country: 'Saudi Arabia', products: 'Sea Bream', orders: 4, value: '1,120,800', status: 'Active' },
-  { name: 'QUE KY FOODS', country: 'Vietnam', products: 'Pangasius Fillet', orders: 2, value: '220,000', status: 'Active' },
-  { name: 'HONG LONG SEAFOOD', country: 'Vietnam', products: 'Keski', orders: 3, value: '300,000', status: 'Active' },
-  { name: 'FMA Pakistan', country: 'Pakistan', products: 'Squid', orders: 1, value: '280,000', status: 'Active' },
-  { name: 'Apex Foods Ltd.', country: 'Bangladesh', products: 'Scampi Shrimp', orders: 1, value: '185,000', status: 'Active' },
-];
+import { useAuth } from '../contexts/AuthContext';
 
 export default function PurchaseManagement() {
   const [activeTab, setActiveTab] = useState<'pos' | 'suppliers'>('pos');
+  const [pos, setPos] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { isAdmin } = useAuth();
+
+  useEffect(() => {
+    const stored = localStorage.getItem('traces_purchase_orders');
+    const initialPOs = [
+      { id: 'PO-2025-001', supplier: 'Tabuk Fisheries', product: 'Sea Bream', qty: '12,000 KG', unitPrice: '23.35', total: '280,200', status: 'Fully Paid', date: 'Oct 15, 2025' },
+      { id: 'PO-2025-002', supplier: 'Hong Long Seafood', product: 'Keski', qty: '3,000 Box', unitPrice: '33.33', total: '100,000', status: 'Fully Paid', date: 'Nov 05, 2025' },
+      { id: 'PO-2025-003', supplier: 'FMA Pakistan', product: 'Squid', qty: '2,260 Box', unitPrice: '123.89', total: '280,000', status: '70% Paid', date: 'Nov 12, 2025' },
+      { id: 'PO-2026-001', supplier: 'PAKTHAI IMPEX', product: 'Rohu', qty: '27,000 KG', unitPrice: '5.55', total: '150,000', status: 'Advance Paid', date: 'Jan 02, 2026' },
+      { id: 'PO-2026-002', supplier: 'QUE KY FOODS', product: 'Pangasius Fillet', qty: '25,000 KG', unitPrice: '4.40', total: '110,000', status: 'Advance Paid', date: 'Feb 10, 2026' },
+    ];
+
+    if (stored) {
+      setPos(JSON.parse(stored));
+    } else {
+      setPos(initialPOs);
+      localStorage.setItem('traces_purchase_orders', JSON.stringify(initialPOs));
+    }
+  }, []);
+
+  const suppliers = [
+    { name: 'Tabuk Fisheries', country: 'Saudi Arabia', products: 'Sea Bream', orders: 4, value: '1,120,800', status: 'Active' },
+    { name: 'QUE KY FOODS', country: 'Vietnam', products: 'Pangasius Fillet', orders: 2, value: '220,000', status: 'Active' },
+    { name: 'HONG LONG SEAFOOD', country: 'Vietnam', products: 'Keski', orders: 3, value: '300,000', status: 'Active' },
+    { name: 'FMA Pakistan', country: 'Pakistan', products: 'Squid', orders: 1, value: '280,000', status: 'Active' },
+    { name: 'Apex Foods Ltd.', country: 'Bangladesh', products: 'Scampi Shrimp', orders: 1, value: '185,000', status: 'Active' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -49,13 +62,15 @@ export default function PurchaseManagement() {
             className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-64 shadow-sm"
           />
         </div>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors shadow-sm"
-        >
-          <i className={`fa-solid ${activeTab === 'pos' ? 'fa-plus' : 'fa-user-plus'}`}></i> 
-          {activeTab === 'pos' ? 'New Purchase Order' : 'Add New Supplier'}
-        </button>
+        {isAdmin && (
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors shadow-sm"
+          >
+            <i className={`fa-solid ${activeTab === 'pos' ? 'fa-plus' : 'fa-user-plus'}`}></i> 
+            {activeTab === 'pos' ? 'New Purchase Order' : 'Add New Supplier'}
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -77,14 +92,14 @@ export default function PurchaseManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {initialPOs.map((po, i) => (
+                {pos.map((po, i) => (
                   <tr key={i} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-6 py-4 font-bold text-slate-700">{po.id}</td>
-                    <td className="px-6 py-4 text-slate-600">{po.supplier}</td>
-                    <td className="px-6 py-4 text-slate-600">{po.product}</td>
-                    <td className="px-6 py-4 text-slate-500">{po.qty}</td>
-                    <td className="px-6 py-4 text-right text-slate-600">{po.unitPrice}</td>
-                    <td className="px-6 py-4 text-right font-bold text-slate-800">{po.total}</td>
+                    <td className="px-6 py-4 font-bold text-slate-700">{po.id || po.invoice_number}</td>
+                    <td className="px-6 py-4 text-slate-600">{po.supplier || po.supplier_name}</td>
+                    <td className="px-6 py-4 text-slate-600">{po.product || po.product_description}</td>
+                    <td className="px-6 py-4 text-slate-500">{po.qty || po.quantity}</td>
+                    <td className="px-6 py-4 text-right text-slate-600">{po.unitPrice || po.unit_price}</td>
+                    <td className="px-6 py-4 text-right font-bold text-slate-800">{po.total || po.total_amount}</td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
                         ${po.status === 'Fully Paid' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}
@@ -96,8 +111,12 @@ export default function PurchaseManagement() {
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"><i className="fa-solid fa-eye"></i></button>
-                        <button className="p-1.5 text-slate-400 hover:text-green-600 transition-colors"><i className="fa-solid fa-pen-to-square"></i></button>
-                        <button className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
+                        {isAdmin && (
+                          <>
+                            <button className="p-1.5 text-slate-400 hover:text-green-600 transition-colors"><i className="fa-solid fa-pen-to-square"></i></button>
+                            <button className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -135,7 +154,9 @@ export default function PurchaseManagement() {
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"><i className="fa-solid fa-eye"></i></button>
-                        <button className="p-1.5 text-slate-400 hover:text-green-600 transition-colors"><i className="fa-solid fa-pen-to-square"></i></button>
+                        {isAdmin && (
+                          <button className="p-1.5 text-slate-400 hover:text-green-600 transition-colors"><i className="fa-solid fa-pen-to-square"></i></button>
+                        )}
                       </div>
                     </td>
                   </tr>

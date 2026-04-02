@@ -1,0 +1,49 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and role information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID." },
+        "email": { "type": "string", "format": "email", "description": "User's email address." },
+        "displayName": { "type": "string", "description": "User's display name." },
+        "role": { "type": "string", "enum": ["admin", "staff"], "description": "User's role in the ERP system." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation timestamp." }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Container": {
+      "title": "Container",
+      "description": "Container details and financial performance.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Container ID." },
+        "supplier": { "type": "string", "description": "Supplier name." },
+        "product": { "type": "string", "description": "Product name." },
+        "origin": { "type": "string", "description": "Origin country." },
+        "qty": { "type": "string", "description": "Quantity." },
+        "purchaseValue": { "type": "string", "description": "Purchase value in SAR." },
+        "totalCost": { "type": "string", "description": "Total cost in SAR." },
+        "saleQty": { "type": "string", "description": "Sold quantity." },
+        "totalSales": { "type": "string", "description": "Total sales in SAR." },
+        "gp": { "type": "string", "description": "Gross profit in SAR." },
+        "roi": { "type": "string", "description": "Return on investment percentage." },
+        "status": { "type": "string", "enum": ["Open", "Closed"], "description": "Container status." },
+        "month": { "type": "string", "description": "Month of transaction." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Record creation timestamp." }
+      },
+      "required": ["id", "supplier", "product", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profiles."
+    },
+    "/containers/{containerId}": {
+      "schema": "Container",
+      "description": "Container records."
+    }
+  }
+}

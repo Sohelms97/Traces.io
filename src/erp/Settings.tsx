@@ -1,36 +1,131 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAuth, UserRole } from '../contexts/AuthContext';
+import { roleLabels, roleDescriptions } from '../lib/permissions';
+import { collection, getDocs, doc, updateDoc, setDoc, query, orderBy } from 'firebase/firestore';
+import { db } from '../firebase';
 
-const users = [
-  { name: 'Admin User', email: 'admin@traces.io', role: 'Admin', status: 'Active' },
-  { name: 'Operations Manager', email: 'ops@traces.io', role: 'Operations', status: 'Active' },
-  { name: 'Warehouse Supervisor', email: 'wh@traces.io', role: 'Warehouse', status: 'Active' },
-  { name: 'Sales Head', email: 'sales@traces.io', role: 'Sales', status: 'Active' },
-  { name: 'Investor Manager', email: 'invest@traces.io', role: 'Investor Manager', status: 'Active' },
-];
+interface UserData {
+  uid: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  status: string;
+}
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'users' | 'system'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'users' | 'system' | 'integrations' | 'user_profile'>('profile');
+  const { user, isAdmin, role } = useAuth();
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [apiKey, setApiKey] = useState(localStorage.getItem('traces_api_key') || process.env.GEMINI_API_KEY || '');
+  const [aiModel, setAiModel] = useState(localStorage.getItem('traces_ai_model') || 'gemini-3-flash-preview');
+  const [confidenceThreshold, setConfidenceThreshold] = useState(Number(localStorage.getItem('traces_confidence_threshold')) || 0.7);
+  const [autoDetect, setAutoDetect] = useState(localStorage.getItem('traces_auto_detect') === 'true');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isTestingKey, setIsTestingKey] = useState(false);
+  const [extractionStats, setExtractionStats] = useState<Record<string, number>>(JSON.parse(localStorage.getItem('traces_extraction_stats') || '{}'));
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const userData = querySnapshot.docs.map(doc => ({
+        uid: doc.id,
+        name: doc.data().displayName || 'Unknown',
+        email: doc.data().email,
+        role: doc.data().role as UserRole,
+        status: 'Active' // Default status
+      }));
+      setUsers(userData);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  };
+
+  const handleSaveIntegration = () => {
+    localStorage.setItem('traces_api_key', apiKey);
+    localStorage.setItem('traces_ai_model', aiModel);
+    localStorage.setItem('traces_confidence_threshold', confidenceThreshold.toString());
+    localStorage.setItem('traces_auto_detect', autoDetect.toString());
+    alert('Integration settings saved successfully!');
+  };
+
+  const testConnection = async () => {
+    setIsTestingKey(true);
+    try {
+      const currentKey = apiKey || process.env.GEMINI_API_KEY;
+      if (!currentKey) {
+        throw new Error('No API key provided. Please enter a key or configure it in environment variables.');
+      }
+      
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: currentKey });
+      const response = await ai.models.generateContent({
+        model: aiModel,
+        contents: [{ parts: [{ text: "Hello, respond with 'Connection successful' if you can read this." }] }]
+      });
+      
+      if (response.text) {
+        alert("Gemini Connection successful!");
+      } else {
+        alert("Connection failed: No response from AI.");
+      }
+    } catch (error: any) {
+      console.error("Test Connection Error:", error);
+      alert(`Connection failed: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsTestingKey(false);
+    }
+  };
+
+  const handleUpdateRole = async (uid: string, newRole: UserRole) => {
+    try {
+      await updateDoc(doc(db, 'users', uid), { role: newRole });
+      fetchUsers();
+      setIsEditUserModalOpen(false);
+    } catch (error) {
+      console.error("Error updating role:", error);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Tabs */}
-      <div className="flex items-center gap-1 bg-slate-200/50 p-1 rounded-xl w-fit">
+      <div className="flex items-center gap-1 bg-slate-200/50 p-1 rounded-xl w-fit overflow-x-auto max-w-full">
+        <button 
+          onClick={() => setActiveTab('user_profile')}
+          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'user_profile' ? 'bg-white text-[#1F4E79] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          My Profile
+        </button>
         <button 
           onClick={() => setActiveTab('profile')}
-          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'profile' ? 'bg-white text-[#1F4E79] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'profile' ? 'bg-white text-[#1F4E79] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
         >
           Company Profile
         </button>
         <button 
           onClick={() => setActiveTab('users')}
-          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-white text-[#1F4E79] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'users' ? 'bg-white text-[#1F4E79] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
         >
           User Management
         </button>
         <button 
+          onClick={() => setActiveTab('integrations')}
+          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'integrations' ? 'bg-white text-[#1F4E79] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          Integrations
+        </button>
+        <button 
           onClick={() => setActiveTab('system')}
-          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'system' ? 'bg-white text-[#1F4E79] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'system' ? 'bg-white text-[#1F4E79] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
         >
           System Settings
         </button>
@@ -38,6 +133,53 @@ export default function Settings() {
 
       {/* Content */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+        {activeTab === 'user_profile' && (
+          <div className="p-8 space-y-8">
+            <div className="flex items-center gap-6">
+              <div className="w-24 h-24 bg-blue-100 rounded-2xl flex items-center justify-center border-2 border-blue-200 text-blue-600 overflow-hidden">
+                {user?.photoURL ? (
+                  <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-3xl font-bold">{user?.displayName?.charAt(0) || 'U'}</span>
+                )}
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold text-slate-800">{user?.displayName}</h3>
+                <p className="text-sm text-slate-500">{user?.email}</p>
+                <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg uppercase tracking-wider">
+                  {role ? roleLabels[role] : 'User'}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Full Name</label>
+                <input type="text" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none" defaultValue={user?.displayName || ''} readOnly />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email Address</label>
+                <input type="text" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none" defaultValue={user?.email || ''} readOnly />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">User Role</label>
+                <input type="text" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none" defaultValue={role ? roleLabels[role] : 'User'} readOnly />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Account ID</label>
+                <input type="text" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none font-mono text-xs" defaultValue={user?.uid || ''} readOnly />
+              </div>
+            </div>
+
+            <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100">
+              <h4 className="text-sm font-bold text-blue-800 mb-2">Role Permissions</h4>
+              <p className="text-sm text-blue-600 leading-relaxed">
+                {role ? roleDescriptions[role] : 'No role assigned.'}
+              </p>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'profile' && (
           <div className="p-8 space-y-8">
             <div className="flex items-center gap-6">
@@ -83,9 +225,11 @@ export default function Settings() {
             </div>
 
             <div className="flex justify-end pt-4">
-              <button className="bg-[#1F4E79] text-white px-8 py-3 rounded-xl font-bold hover:bg-[#163a5a] transition-all shadow-lg shadow-blue-900/20">
-                Save Changes
-              </button>
+              {isAdmin && (
+                <button className="bg-[#1F4E79] text-white px-8 py-3 rounded-xl font-bold hover:bg-[#163a5a] transition-all shadow-lg shadow-blue-900/20">
+                  Save Changes
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -94,9 +238,14 @@ export default function Settings() {
           <div className="p-8">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-slate-800">User Management</h3>
-              <button className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors">
-                <i className="fa-solid fa-user-plus"></i> Add User
-              </button>
+              {isAdmin && (
+                <button 
+                  onClick={() => setIsAddUserModalOpen(true)}
+                  className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors"
+                >
+                  <i className="fa-solid fa-user-plus"></i> Add User
+                </button>
+              )}
             </div>
             <div className="border border-slate-100 rounded-2xl overflow-hidden">
               <table className="w-full text-left">
@@ -115,18 +264,159 @@ export default function Settings() {
                       <td className="px-6 py-4 font-bold text-slate-700">{user.name}</td>
                       <td className="px-6 py-4 text-slate-500">{user.email}</td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded uppercase tracking-wider">{user.role}</span>
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded uppercase tracking-wider">
+                          {roleLabels[user.role] || user.role}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded uppercase tracking-wider">{user.status}</span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <button className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"><i className="fa-solid fa-user-pen"></i></button>
+                        {isAdmin && (
+                          <button 
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setIsEditUserModalOpen(true);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
+                          >
+                            <i className="fa-solid fa-user-pen"></i>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'integrations' && (
+          <div className="p-8 space-y-8">
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 text-2xl">
+                  <i className="fa-solid fa-brain"></i>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-800">Google Gemini AI</h3>
+                  <p className="text-sm text-slate-500">Used for AI document extraction, business insights, and automation.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                      <span>Gemini API Key</span>
+                      <button 
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        className="text-blue-600 hover:underline normal-case font-medium"
+                      >
+                        {showApiKey ? 'Hide' : 'Show'}
+                      </button>
+                    </label>
+                    <div className="relative">
+                      <input 
+                        type={showApiKey ? "text" : "password"} 
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                        placeholder="Enter your Gemini API key"
+                        className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none font-mono text-sm"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400">Stored locally in your browser. Get it from Google AI Studio.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">AI Model</label>
+                    <select 
+                      value={aiModel}
+                      onChange={(e) => setAiModel(e.target.value)}
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    >
+                      <option value="gemini-3-flash-preview">Gemini 3 Flash (Recommended)</option>
+                      <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Advanced)</option>
+                      <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                      <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                      <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    </select>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button 
+                      onClick={handleSaveIntegration}
+                      className="bg-[#1F4E79] text-white px-6 py-2 rounded-lg font-bold text-sm hover:bg-[#163a5a] transition-colors"
+                    >
+                      Save Settings
+                    </button>
+                    <button 
+                      onClick={testConnection}
+                      disabled={isTestingKey || !apiKey}
+                      className="bg-white text-slate-700 border border-slate-200 px-6 py-2 rounded-lg font-bold text-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
+                    >
+                      {isTestingKey ? 'Testing...' : 'Test Connection'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-4 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                  <h4 className="text-sm font-bold text-slate-800">Extraction Settings</h4>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-bold text-slate-700">Auto-Detect Type</p>
+                        <p className="text-xs text-slate-500">Automatically identify document type</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={autoDetect}
+                          onChange={(e) => setAutoDetect(e.target.checked)}
+                          className="sr-only peer" 
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <p className="text-sm font-bold text-slate-700">Confidence Threshold</p>
+                        <span className="text-xs font-bold text-blue-600">{Math.round(confidenceThreshold * 100)}%</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="0.1" 
+                        max="1.0" 
+                        step="0.1"
+                        value={confidenceThreshold}
+                        onChange={(e) => setConfidenceThreshold(parseFloat(e.target.value))}
+                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      />
+                      <p className="text-[10px] text-slate-400">Flag fields with confidence below this level.</p>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-200">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Usage Stats (Today)</p>
+                      <div className="flex items-end gap-1 h-12">
+                        {(Object.entries(extractionStats || {}) as [string, number][]).slice(-7).map(([date, count]) => (
+                          <div 
+                            key={date}
+                            className="flex-1 bg-blue-100 rounded-t-sm relative group"
+                            style={{ height: `${Math.min(100, (Number(count) / 50) * 100)}%` }}
+                          >
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap z-10">
+                              {date}: {count}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -159,6 +449,58 @@ export default function Settings() {
           </div>
         )}
       </div>
+      {/* Edit User Modal */}
+      <AnimatePresence>
+        {isEditUserModalOpen && selectedUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsEditUserModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-slate-800">Edit User Role</h3>
+                <button onClick={() => setIsEditUserModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                  <i className="fa-solid fa-xmark text-xl"></i>
+                </button>
+              </div>
+              <div className="p-6 space-y-6">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">User</label>
+                  <div className="p-3 bg-slate-50 rounded-xl font-bold text-slate-700">{selectedUser.name}</div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select New Role</label>
+                  <select 
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    value={selectedUser.role}
+                    onChange={(e) => handleUpdateRole(selectedUser.uid, e.target.value as UserRole)}
+                  >
+                    {Object.entries(roleLabels).map(([role, label]) => (
+                      <option key={role} value={role}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                  <h4 className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-2">Permissions Summary</h4>
+                  <p className="text-sm text-blue-600 leading-relaxed">
+                    {roleDescriptions[selectedUser.role]}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,0 +1,127 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - email: string (required, email format) - User's email address
+    //   - displayName: string (optional) - User's display name
+    //   - role: string (required, enum: ['admin', 'staff']) - User's role
+    //   - createdAt: string (required, date-time format) - Account creation timestamp
+    //
+    // Collection: containers
+    // Document ID: {containerId}
+    // Fields:
+    //   - id: string (required) - Container ID
+    //   - supplier: string (required) - Supplier name
+    //   - product: string (required) - Product name
+    //   - origin: string (optional) - Origin country
+    //   - qty: string (optional) - Quantity
+    //   - purchaseValue: string (optional) - Purchase value in SAR
+    //   - totalCost: string (optional) - Total cost in SAR
+    //   - saleQty: string (optional) - Sold quantity
+    //   - totalSales: string (optional) - Total sales in SAR
+    //   - gp: string (optional) - Gross profit in SAR
+    //   - roi: string (optional) - ROI percentage
+    //   - status: string (required, enum: ['Open', 'Closed']) - Container status
+    //   - month: string (optional) - Month of transaction
+    //   - createdAt: string (required, date-time format) - Record creation timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          request.auth.token.email == "sohelms97@gmail.com" ||
+          request.auth.token.email == "sohems97@gmail.com"
+        );
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      let allowedRoles = [
+        'admin', 
+        'finance_manager', 
+        'sales_executive', 
+        'purchase_officer', 
+        'warehouse_staff', 
+        'investor_manager', 
+        'traceability_officer', 
+        'view_only'
+      ];
+      
+      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'role', 'createdAt', 'photoURL']) &&
+             data.uid == request.auth.uid &&
+             data.email == request.auth.token.email &&
+             isValidEmail(data.email) &&
+             data.role in allowedRoles &&
+             (data.createdAt is timestamp && (data.createdAt == request.time || (request.method == 'update' && data.createdAt == resource.data.createdAt)));
+    }
+
+    function isValidContainer(data) {
+      return hasOnlyAllowedFields(['id', 'supplier', 'product', 'origin', 'qty', 'purchaseValue', 'totalCost', 'saleQty', 'totalSales', 'gp', 'roi', 'status', 'month', 'createdAt']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.supplier is string && data.supplier.size() > 0 && data.supplier.size() < 100 &&
+             data.product is string && data.product.size() > 0 && data.product.size() < 100 &&
+             data.status in ['Open', 'Closed'] &&
+             (data.createdAt is timestamp || data.createdAt is string);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && 
+                    (request.resource.data.role != 'admin' || 
+                     request.auth.token.email == "sohelms97@gmail.com" || 
+                     request.auth.token.email == "sohems97@gmail.com");
+      allow update: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && 
+                    (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /containers/{containerId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidContainer(request.resource.data);
+      allow update: if isAdmin() && isValidContainer(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '../contexts/AuthContext';
 
 const inventory = [
   { name: 'Sea Bream', category: 'Seafood', origin: 'Saudi Arabia', supplier: 'Tabuk Fisheries', container: 'TFC/EX026/25', qtyIn: '12,000 KG', qtySold: '12,000 KG', qtyRem: '0 KG', unitCost: '23.35', value: '0', status: 'Out of Stock' },
@@ -19,6 +20,7 @@ const movementLog = [
 
 export default function WarehouseInventory() {
   const [activeTab, setActiveTab] = useState<'stock' | 'movement'>('stock');
+  const { isAdmin } = useAuth();
 
   return (
     <div className="space-y-6">
@@ -69,12 +71,16 @@ export default function WarehouseInventory() {
           />
         </div>
         <div className="flex items-center gap-3">
-          <button className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
-            <i className="fa-solid fa-file-invoice"></i> Generate GRN
-          </button>
-          <button className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors shadow-sm">
-            <i className="fa-solid fa-plus"></i> Stock Adjustment
-          </button>
+          {isAdmin && (
+            <>
+              <button className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
+                <i className="fa-solid fa-file-invoice"></i> Generate GRN
+              </button>
+              <button className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors shadow-sm">
+                <i className="fa-solid fa-plus"></i> Stock Adjustment
+              </button>
+            </>
+          )}
         </div>
       </div>
 

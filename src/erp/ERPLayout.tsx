@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '../contexts/AuthContext';
+import { rolePermissions, roleLabels } from '../lib/permissions';
+import DocumentUploadModal from '../components/DocumentUploadModal';
+import { DocumentType } from '../lib/claude';
+import { useDocuments } from '../hooks/useDocuments';
 
 const sidebarModules = [
   { name: 'Dashboard', icon: 'fa-house', path: '/erp/dashboard' },
@@ -12,15 +17,38 @@ const sidebarModules = [
   { name: 'Investor Portal', icon: 'fa-user', path: '/erp/investors' },
   { name: 'Financial Reports', icon: 'fa-chart-column', path: '/erp/reports' },
   { name: 'Traceability Tracker', icon: 'fa-link', path: '/erp/traceability' },
+  { name: 'Documents', icon: 'fa-file-lines', path: '/erp/documents' },
   { name: 'Settings', icon: 'fa-gear', path: '/erp/settings' },
 ];
+
+import { useAlerts, Alert } from '../hooks/useAlerts';
 
 export default function ERPLayout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
+  const { user, logout, role } = useAuth();
   const location = useLocation();
+  const { addDocument } = useDocuments();
+  const { alerts, markAsRead } = useAlerts();
+
+  const unreadAlerts = alerts.filter(a => !a.isRead);
+
+  const allowedModules = sidebarModules.filter(m => 
+    role && rolePermissions[role]?.includes(m.path)
+  );
 
   const currentModule = sidebarModules.find(m => m.path === location.pathname) || { name: 'Dashboard' };
+
+  const addToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 5000);
+  };
 
   return (
     <div className="flex h-screen bg-slate-100 font-['Inter']">
@@ -38,7 +66,7 @@ export default function ERPLayout() {
         </div>
 
         <nav className="flex-1 py-6 overflow-y-auto">
-          {sidebarModules.map((module) => (
+          {allowedModules.map((module) => (
             <Link
               key={module.path}
               to={module.path}
@@ -84,6 +112,14 @@ export default function ERPLayout() {
           </div>
 
           <div className="flex items-center gap-6">
+            <button 
+              onClick={() => setIsUploadModalOpen(true)}
+              className="hidden md:flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium"
+            >
+              <i className="fa-solid fa-cloud-arrow-up"></i>
+              <span>Upload Document</span>
+            </button>
+
             <div className="relative hidden md:block">
               <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
               <input 
@@ -93,24 +129,107 @@ export default function ERPLayout() {
               />
             </div>
 
-            <button className="relative p-2 text-slate-500 hover:bg-slate-50 rounded-full transition-colors">
-              <i className="fa-solid fa-bell text-xl"></i>
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                className="relative p-2 text-slate-500 hover:bg-slate-50 rounded-full transition-colors"
+              >
+                <i className="fa-solid fa-bell text-xl"></i>
+                {unreadAlerts.length > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white text-[8px] text-white flex items-center justify-center font-bold">
+                    {unreadAlerts.length}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {isNotificationsOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-[100]" 
+                      onClick={() => setIsNotificationsOpen(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[101] overflow-hidden"
+                    >
+                      <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                        <h3 className="font-bold text-slate-800">Notifications</h3>
+                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                          {unreadAlerts.length} New
+                        </span>
+                      </div>
+                      <div className="max-h-96 overflow-y-auto">
+                        {alerts.length > 0 ? (
+                          <div className="divide-y divide-slate-50">
+                            {alerts.map(alert => (
+                              <div 
+                                key={alert.id} 
+                                className={`p-4 hover:bg-slate-50 transition-colors cursor-pointer ${alert.isRead ? 'opacity-60' : ''}`}
+                                onClick={() => markAsRead(alert.id)}
+                              >
+                                <div className="flex gap-3">
+                                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                    alert.severity === 'critical' ? 'bg-red-100 text-red-600' : 
+                                    alert.severity === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
+                                  }`}>
+                                    <i className={`fa-solid ${
+                                      alert.severity === 'critical' ? 'fa-circle-exclamation' : 
+                                      alert.severity === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-info'
+                                    }`}></i>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="text-xs font-bold text-slate-800">{alert.title}</div>
+                                    <p className="text-[11px] text-slate-500 leading-relaxed">{alert.message}</p>
+                                    <div className="text-[9px] text-slate-400 font-medium">{new Date(alert.date).toLocaleTimeString()}</div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-8 text-center space-y-2">
+                            <i className="fa-solid fa-bell-slash text-slate-200 text-3xl"></i>
+                            <p className="text-sm text-slate-400 font-medium">No notifications yet</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3 border-t border-slate-100 text-center">
+                        <button className="text-xs font-bold text-blue-600 hover:underline">View All Alerts</button>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
 
             <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
-              <div className="text-right hidden sm:block">
-                <div className="text-sm font-bold text-slate-800">Admin User</div>
-                <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Operations Manager</div>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-600 font-bold overflow-hidden">
-                <img 
-                  src="https://ui-avatars.com/api/?name=Admin+User&background=1F4E79&color=fff" 
-                  alt="User" 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <button className="p-2 text-slate-400 hover:text-red-500 transition-colors">
+              <Link to="/erp/settings" className="text-right hidden sm:block hover:opacity-80 transition-opacity">
+                <div className="text-sm font-bold text-slate-800">{user?.displayName}</div>
+                <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
+                  {role ? roleLabels[role] : 'User'}
+                </div>
+              </Link>
+              <Link to="/erp/settings" className="w-10 h-10 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-600 font-bold overflow-hidden hover:ring-2 hover:ring-blue-500/20 transition-all">
+                {user?.photoURL ? (
+                  <img 
+                    src={user.photoURL} 
+                    alt="User" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-[#1F4E79] text-white">
+                    {user?.displayName?.charAt(0) || 'U'}
+                  </div>
+                )}
+              </Link>
+              <button 
+                onClick={logout}
+                className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                title="Sign Out"
+              >
                 <i className="fa-solid fa-right-from-bracket"></i>
               </button>
             </div>
@@ -121,6 +240,32 @@ export default function ERPLayout() {
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
+      </div>
+
+      {/* Document Upload Modal */}
+      <DocumentUploadModal 
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+      />
+
+      {/* Toasts */}
+      <div className="fixed bottom-6 right-6 z-[110] space-y-3">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, x: 20, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 20, scale: 0.9 }}
+              className={`px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 font-bold text-sm ${
+                toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+              }`}
+            >
+              <i className={`fa-solid ${toast.type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}`}></i>
+              <span>{toast.message}</span>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -152,7 +297,7 @@ export default function ERPLayout() {
                 </button>
               </div>
               <nav className="flex-1 py-6 overflow-y-auto">
-                {sidebarModules.map((module) => (
+                {allowedModules.map((module) => (
                   <Link
                     key={module.path}
                     to={module.path}

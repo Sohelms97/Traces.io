@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
-const investors = [
+const defaultInvestors = [
   { name: 'Abdullah Al-Saud', amount: '500,000', date: 'Oct 01, 2025', product: 'Sea Bream', roi: '12.5%', paid: '62,500', outstanding: '0', status: 'Active' },
   { name: 'Fahad Bin Khalid', amount: '250,000', date: 'Nov 15, 2025', product: 'Keski', roi: '15.0%', paid: '0', outstanding: '37,500', status: 'Active' },
   { name: 'Sami Al-Otaibi', amount: '1,000,000', date: 'Jan 10, 2026', product: 'Rohu', roi: '10.0%', paid: '0', outstanding: '100,000', status: 'Active' },
@@ -18,7 +20,19 @@ const investmentSteps = [
 ];
 
 export default function InvestorPortal() {
+  const [investors, setInvestors] = useState<any[]>([]);
   const [selectedInvestor, setSelectedInvestor] = useState<any>(null);
+  const { isAdmin } = useAuth();
+
+  useEffect(() => {
+    const stored = JSON.parse(localStorage.getItem('traces_investors') || '[]');
+    if (stored.length === 0) {
+      setInvestors(defaultInvestors);
+      localStorage.setItem('traces_investors', JSON.stringify(defaultInvestors));
+    } else {
+      setInvestors(stored);
+    }
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -32,9 +46,14 @@ export default function InvestorPortal() {
             className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-64 shadow-sm"
           />
         </div>
-        <button className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors shadow-sm">
-          <i className="fa-solid fa-user-plus"></i> Add New Investor
-        </button>
+        {isAdmin && (
+          <Link 
+            to="/erp/investors/new"
+            className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors shadow-sm"
+          >
+            <i className="fa-solid fa-user-plus"></i> Add New Investor
+          </Link>
+        )}
       </div>
 
       {/* Table */}
@@ -75,7 +94,9 @@ export default function InvestorPortal() {
                       >
                         <i className="fa-solid fa-eye"></i>
                       </button>
-                      <button className="p-1.5 text-slate-400 hover:text-green-600 transition-colors"><i className="fa-solid fa-file-pdf"></i></button>
+                      {isAdmin && (
+                        <button className="p-1.5 text-slate-400 hover:text-green-600 transition-colors"><i className="fa-solid fa-file-pdf"></i></button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -145,7 +166,7 @@ export default function InvestorPortal() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 text-center">
                     <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2">Total ROI (Expected)</div>
-                    <div className="text-3xl font-bold text-[#1F4E79]">SAR {selectedInvestor.outstanding || (parseFloat(selectedInvestor.amount.replace(/,/g, '')) * parseFloat(selectedInvestor.roi) / 100).toLocaleString()}</div>
+                    <div className="text-3xl font-bold text-[#1F4E79]">SAR {selectedInvestor.outstanding || (parseFloat((selectedInvestor.amount || '0').replace(/,/g, '')) * parseFloat(selectedInvestor.roi || '0') / 100).toLocaleString()}</div>
                     <div className="text-xs text-green-600 font-bold mt-1">{selectedInvestor.roi} Yield</div>
                   </div>
                   <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 text-center">
@@ -188,7 +209,7 @@ export default function InvestorPortal() {
                             <td className="px-4 py-3 text-slate-700 font-medium">ROI Payment #1</td>
                             <td className="px-4 py-3 text-right font-bold text-red-600">{selectedInvestor.paid}</td>
                             <td className="px-4 py-3 text-right text-slate-400">-</td>
-                            <td className="px-4 py-3 text-right font-bold text-slate-800">{(parseFloat(selectedInvestor.amount.replace(/,/g, '')) - parseFloat(selectedInvestor.paid.replace(/,/g, ''))).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-right font-bold text-slate-800">{(parseFloat((selectedInvestor.amount || '0').replace(/,/g, '')) - parseFloat((selectedInvestor.paid || '0').replace(/,/g, ''))).toLocaleString()}</td>
                           </tr>
                         )}
                       </tbody>
