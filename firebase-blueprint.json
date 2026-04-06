@@ -34,6 +34,23 @@
         "createdAt": { "type": "string", "format": "date-time", "description": "Record creation timestamp." }
       },
       "required": ["id", "supplier", "product", "status"]
+    },
+    "Investor": {
+      "title": "Investor",
+      "description": "Investor profile and investment details.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Investor name." },
+        "amount": { "type": "string", "description": "Investment amount in SAR." },
+        "date": { "type": "string", "description": "Investment date." },
+        "product": { "type": "string", "description": "Linked product or container." },
+        "roi": { "type": "string", "description": "Agreed ROI percentage." },
+        "paid": { "type": "string", "description": "Total returns paid." },
+        "outstanding": { "type": "string", "description": "Outstanding returns." },
+        "status": { "type": "string", "enum": ["Active", "Inactive"], "description": "Investor status." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Record creation timestamp." }
+      },
+      "required": ["name", "amount", "status"]
     }
   },
   "firestore": {
@@ -44,6 +61,10 @@
     "/containers/{containerId}": {
       "schema": "Container",
       "description": "Container records."
+    },
+    "/investors/{investorId}": {
+      "schema": "Investor",
+      "description": "Investor records."
     }
   }
 }

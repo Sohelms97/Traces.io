@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { collection, query, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
+import { db } from '../firebase';
+import { GoogleGenAI } from "@google/genai";
 
 const reportTabs = [
   { id: 'container', name: 'Container-wise P&L', icon: 'fa-box' },
@@ -9,70 +12,131 @@ const reportTabs = [
   { id: 'cashflow', name: 'Cash Flow', icon: 'fa-money-bill-transfer' },
   { id: 'supplier', name: 'Supplier-wise', icon: 'fa-truck-field' },
   { id: 'customer', name: 'Customer-wise', icon: 'fa-users' },
-  { id: 'investor', name: 'Investor ROI', icon: 'fa-hand-holding-dollar' },
-];
-
-const containerPL = [
-  { id: 'TFC/EX026/25', cost: '312,360', sales: '322,200', gp: '9,840', roi: '3.15%', status: 'Closed', month: 'Nov 2025' },
-  { id: 'FBIU5326683', cost: '115,036', sales: '131,850', gp: '16,814', roi: '14.62%', status: 'Closed', month: 'Dec 2025' },
-  { id: 'Inv.34', cost: '325,890', sales: '312,610', gp: '-13,280', roi: '-4.08%', status: 'Closed', month: 'Dec 2025' },
-  { id: 'SZLU9069865', cost: '165,000', sales: '0', gp: '0', roi: '0%', status: 'Open', month: 'Jan 2026' },
-  { id: 'OTPU6690769', cost: '121,477', sales: '0', gp: '0', roi: '0%', status: 'Open', month: 'Feb 2026' },
-];
-
-const monthlySummary = [
-  { month: 'Nov 2025', containers: 4, sales: '2,450,000', cost: '1,800,000', gp: '650,000', gpPerc: '26.5%' },
-  { month: 'Dec 2025', containers: 13, sales: '3,120,000', cost: '2,400,000', gp: '720,000', gpPerc: '23.1%' },
-  { month: 'Jan 2026', containers: 13, sales: '2,100,000', cost: '1,500,000', gp: '600,000', gpPerc: '28.6%' },
-  { month: 'Feb 2026', containers: 7, sales: '2,725,310', cost: '1,950,000', gp: '775,310', gpPerc: '28.4%' },
 ];
 
 export default function FinancialReports() {
   const [activeTab, setActiveTab] = useState('container');
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [aiInsights, setAiInsights] = useState<string | null>(null);
+  
+  const [containers, setContainers] = useState<any[]>([]);
+  const [sales, setSales] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const qContainers = query(collection(db, 'containers'), orderBy('createdAt', 'desc'));
+    const qSales = query(collection(db, 'sales_orders'), orderBy('createdAt', 'desc'));
+
+    const unsubContainers = onSnapshot(qContainers, (snapshot) => {
+      setContainers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+
+    const unsubSales = onSnapshot(qSales, (snapshot) => {
+      setSales(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+      setLoading(false);
+    });
+
+    return () => {
+      unsubContainers();
+      unsubSales();
+    };
+  }, []);
 
   const generateAIInsights = async () => {
-    const apiKey = localStorage.getItem('traces_api_key');
+    const apiKey = process.env.GEMINI_API_KEY || localStorage.getItem('traces_api_key');
     if (!apiKey) {
-      alert('Please add your Anthropic API Key in Settings -> Integrations first.');
+      alert('Please add your Gemini API Key in Settings -> Integrations first.');
       return;
     }
 
     setIsGeneratingInsights(true);
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "dangerously-allow-browser": "true"
-        },
-        body: JSON.stringify({
-          model: "claude-3-5-sonnet-20240620",
-          max_tokens: 1000,
-          messages: [{
-            role: "user",
-            content: `Analyze this ERP financial data and provide 3-5 strategic insights and recommendations for Farmers Market Asia. 
-            Data Summary:
-            - Monthly GP is averaging 26.6%
-            - Some containers (Inv.34) are showing negative ROI (-4.08%)
-            - Cash flow is tight due to high container volume in Dec/Jan.
-            Return the insights in a clear, professional bulleted list.`
-          }]
-        })
+      const ai = new GoogleGenAI({ apiKey });
+      
+      // Prepare data summary for AI
+      const totalSales = sales.reduce((acc, s) => acc + parseFloat((s.total || '0').replace(/,/g, '')), 0);
+      const totalCost = containers.reduce((acc, c) => acc + parseFloat((c.totalCost || '0').replace(/,/g, '')), 0);
+      const avgROI = containers.length > 0 
+        ? containers.reduce((acc, c) => acc + parseFloat((c.roi || '0').replace('%', '')), 0) / containers.length 
+        : 0;
+      
+      const prompt = `Analyze this ERP financial data for Farmers Market Asia and provide 3-5 strategic insights and actionable recommendations.
+      
+      Financial Summary:
+      - Total Sales Revenue: SAR ${totalSales.toLocaleString()}
+      - Total Purchase/Operating Cost: SAR ${totalCost.toLocaleString()}
+      - Average Container ROI: ${avgROI.toFixed(2)}%
+      - Total Containers: ${containers.length}
+      - Total Sales Orders: ${sales.length}
+      
+      Recent Performance:
+      ${containers.slice(0, 5).map(c => `- Container ${c.id}: ROI ${c.roi}, Status ${c.status}`).join('\n')}
+      
+      Please provide the insights in a clear, professional bulleted list with a focus on profitability, risk management, and operational efficiency.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
       });
 
-      if (!response.ok) throw new Error('Failed to generate insights');
-      const result = await response.json();
-      setAiInsights(result.content[0].text);
+      setAiInsights(response.text || "No insights generated.");
     } catch (error) {
       console.error("AI Insights error:", error);
       alert('Failed to generate AI insights. Please check your API key.');
     } finally {
       setIsGeneratingInsights(false);
     }
+  };
+
+  // Helper to group data by month
+  const getMonthlySummary = () => {
+    const summary: any = {};
+    
+    containers.forEach(c => {
+      const month = c.month || 'Unknown';
+      if (!summary[month]) summary[month] = { month, containers: 0, sales: 0, cost: 0 };
+      summary[month].containers += 1;
+      summary[month].cost += parseFloat((c.totalCost || '0').replace(/,/g, ''));
+      summary[month].sales += parseFloat((c.totalSales || '0').replace(/,/g, ''));
+    });
+
+    return Object.values(summary).sort((a: any, b: any) => {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const [mA, yA] = a.month.split(' ');
+      const [mB, yB] = b.month.split(' ');
+      if (yA !== yB) return parseInt(yB) - parseInt(yA);
+      return months.indexOf(mB) - months.indexOf(mA);
+    });
+  };
+
+  // Helper for supplier-wise report
+  const getSupplierSummary = () => {
+    const summary: any = {};
+    containers.forEach(c => {
+      const s = c.supplier || 'Unknown';
+      if (!summary[s]) summary[s] = { name: s, count: 0, value: 0, products: new Set() };
+      summary[s].count += 1;
+      summary[s].value += parseFloat((c.purchaseValue || '0').replace(/,/g, ''));
+      summary[s].products.add(c.product);
+    });
+    return Object.values(summary).map((s: any) => ({
+      ...s,
+      products: Array.from(s.products).join(', ')
+    }));
+  };
+
+  // Helper for customer-wise report
+  const getCustomerSummary = () => {
+    const summary: any = {};
+    sales.forEach(s => {
+      const c = s.customer || 'Unknown';
+      if (!summary[c]) summary[c] = { name: c, sales: 0, paid: 0, balance: 0 };
+      const total = parseFloat((s.total || '0').replace(/,/g, ''));
+      summary[c].sales += total;
+      if (s.status === 'Paid') summary[c].paid += total;
+      else summary[c].balance += total;
+    });
+    return Object.values(summary);
   };
 
   return (
@@ -167,11 +231,11 @@ export default function FinancialReports() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {containerPL.map((row, i) => (
+                {containers.map((row, i) => (
                   <tr key={i} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-bold text-slate-700">{row.id}</td>
-                    <td className="px-6 py-4 text-right font-medium text-slate-600">{row.cost}</td>
-                    <td className="px-6 py-4 text-right font-medium text-slate-600">{row.sales}</td>
+                    <td className="px-6 py-4 text-right font-medium text-slate-600">{row.totalCost}</td>
+                    <td className="px-6 py-4 text-right font-medium text-slate-600">{row.totalSales}</td>
                     <td className="px-6 py-4 text-right font-bold text-[#1F4E79]">{row.gp}</td>
                     <td className="px-6 py-4 text-right font-bold text-green-600">{row.roi}</td>
                     <td className="px-6 py-4">
@@ -203,25 +267,58 @@ export default function FinancialReports() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {monthlySummary.map((row, i) => (
-                  <tr key={i} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 font-bold text-slate-700">{row.month}</td>
-                    <td className="px-6 py-4 text-center text-slate-600 font-bold">{row.containers}</td>
-                    <td className="px-6 py-4 text-right font-medium text-slate-600">{row.sales}</td>
-                    <td className="px-6 py-4 text-right font-medium text-slate-600">{row.cost}</td>
-                    <td className="px-6 py-4 text-right font-bold text-[#1F4E79]">{row.gp}</td>
-                    <td className="px-6 py-4 text-right font-bold text-green-600">{row.gpPerc}</td>
-                  </tr>
-                ))}
+                {getMonthlySummary().map((row: any, i) => {
+                  const gp = row.sales - row.cost;
+                  const gpPerc = row.sales > 0 ? ((gp / row.sales) * 100).toFixed(1) + '%' : '0%';
+                  return (
+                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 font-bold text-slate-700">{row.month}</td>
+                      <td className="px-6 py-4 text-center text-slate-600 font-bold">{row.containers}</td>
+                      <td className="px-6 py-4 text-right font-medium text-slate-600">{row.sales.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-right font-medium text-slate-600">{row.cost.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-right font-bold text-[#1F4E79]">{gp.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-right font-bold text-green-600">{gpPerc}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
 
         {activeTab === 'aging' && (
-          <div className="p-12 text-center text-slate-400">
-            <i className="fa-solid fa-clock text-4xl mb-4"></i>
-            <p className="font-bold">Aging Summary Report Coming Soon</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider font-bold">
+                <tr>
+                  <th className="px-6 py-4">Customer</th>
+                  <th className="px-6 py-4">Invoice No.</th>
+                  <th className="px-6 py-4 text-right">Amount (SAR)</th>
+                  <th className="px-6 py-4">Due Date</th>
+                  <th className="px-6 py-4 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {sales.filter(s => s.status !== 'Paid').map((row, i) => (
+                  <tr key={i} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4 font-bold text-slate-700">{row.customer}</td>
+                    <td className="px-6 py-4 text-slate-600">{row.id}</td>
+                    <td className="px-6 py-4 text-right font-bold text-red-600">{row.total}</td>
+                    <td className="px-6 py-4 text-slate-500">{row.due || 'N/A'}</td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700">
+                        {row.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {sales.filter(s => s.status !== 'Paid').length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-bold">No outstanding receivables</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -251,15 +348,11 @@ export default function FinancialReports() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {[
-                  { name: 'Tabuk Fisheries', count: 4, value: '1,120,800', products: 'Sea Bream' },
-                  { name: 'QUE KY FOODS', count: 2, value: '220,000', products: 'Pangasius Fillet' },
-                  { name: 'HONG LONG SEAFOOD', count: 3, value: '300,000', products: 'Keski' },
-                ].map((row, i) => (
+                {getSupplierSummary().map((row: any, i) => (
                   <tr key={i} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-bold text-slate-700">{row.name}</td>
                     <td className="px-6 py-4 text-center text-slate-600 font-bold">{row.count}</td>
-                    <td className="px-6 py-4 text-right font-bold text-[#1F4E79]">{row.value}</td>
+                    <td className="px-6 py-4 text-right font-bold text-[#1F4E79]">{row.value.toLocaleString()}</td>
                     <td className="px-6 py-4 text-slate-500">{row.products}</td>
                   </tr>
                 ))}
@@ -280,49 +373,12 @@ export default function FinancialReports() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {[
-                  { name: 'Abdullah Bin Hathboor', sales: '1,450,000', paid: '1,450,000', balance: '0' },
-                  { name: 'Bait Al Qaseed', sales: '820,000', paid: '782,500', balance: '37,500' },
-                ].map((row, i) => (
+                {getCustomerSummary().map((row: any, i) => (
                   <tr key={i} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-bold text-slate-700">{row.name}</td>
-                    <td className="px-6 py-4 text-right font-bold text-[#1F4E79]">{row.sales}</td>
-                    <td className="px-6 py-4 text-right font-bold text-green-600">{row.paid}</td>
-                    <td className="px-6 py-4 text-right font-bold text-red-600">{row.balance}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {activeTab === 'investor' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider font-bold">
-                <tr>
-                  <th className="px-6 py-4">Investor</th>
-                  <th className="px-6 py-4 text-right">Investment (SAR)</th>
-                  <th className="px-6 py-4 text-right">Returns (SAR)</th>
-                  <th className="px-6 py-4 text-right">ROI %</th>
-                  <th className="px-6 py-4">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {[
-                  { name: 'Abdullah Al-Saud', amount: '500,000', returns: '62,500', roi: '12.5%', status: 'Active' },
-                  { name: 'Fahad Bin Khalid', amount: '250,000', returns: '0', roi: '15.0%', status: 'Active' },
-                ].map((row, i) => (
-                  <tr key={i} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 font-bold text-slate-700">{row.name}</td>
-                    <td className="px-6 py-4 text-right font-bold text-[#1F4E79]">{row.amount}</td>
-                    <td className="px-6 py-4 text-right font-bold text-green-600">{row.returns}</td>
-                    <td className="px-6 py-4 text-right font-bold text-blue-600">{row.roi}</td>
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-green-100 text-green-700">
-                        {row.status}
-                      </span>
-                    </td>
+                    <td className="px-6 py-4 text-right font-bold text-[#1F4E79]">{row.sales.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-right font-bold text-green-600">{row.paid.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-right font-bold text-red-600">{row.balance.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>

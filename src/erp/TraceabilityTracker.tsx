@@ -98,7 +98,7 @@ export default function TraceabilityTracker() {
                       <div className="flex items-center gap-2 text-sm font-bold text-green-600">
                         <i className="fa-solid fa-circle-check"></i> {step.status} • {step.location}
                       </div>
-                      <p className="text-slate-500 text-sm leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      <p className="text-slate-500 text-sm leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100 group-hover:bg-blue-50/50 group-hover:border-blue-100 transition-colors">
                         {step.details}
                       </p>
                       <div className="flex items-center gap-3 pt-2">

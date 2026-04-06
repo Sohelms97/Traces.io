@@ -40,8 +40,27 @@ export default function LoginPage() {
         await loginWithEmail(email, password);
       }
     } catch (err: any) {
-      console.error('Auth error:', err);
-      setError(err.message || 'An error occurred during authentication');
+      console.error('Auth error full details:', err);
+      let friendlyMessage = err.message || 'An error occurred during authentication';
+      
+      const isInvalidCredential = 
+        err.code === 'auth/invalid-credential' || 
+        err.code === 'auth/invalid-login-credentials' ||
+        err.message?.toLowerCase().includes('invalid-credential');
+
+      if (isInvalidCredential) {
+        friendlyMessage = 'Invalid email or password. If you haven\'t registered this account yet, please click "Register" below. If you are an administrator, ensure "Email/Password" is enabled in Firebase Console.';
+      } else if (err.code === 'auth/user-not-found') {
+        friendlyMessage = 'No account found with this email. Please register first.';
+      } else if (err.code === 'auth/wrong-password') {
+        friendlyMessage = 'Incorrect password. Please try again or reset your password.';
+      } else if (err.code === 'auth/too-many-requests') {
+        friendlyMessage = 'Too many failed login attempts. Please try again later.';
+      } else if (err.code === 'auth/network-request-failed') {
+        friendlyMessage = 'Network error. Please check your internet connection.';
+      }
+      
+      setError(friendlyMessage);
     } finally {
       setIsSubmitting(false);
     }

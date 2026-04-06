@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth, UserRole } from '../contexts/AuthContext';
 import { roleLabels, roleDescriptions } from '../lib/permissions';
-import { collection, getDocs, doc, updateDoc, setDoc, query, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, getDocs, doc, updateDoc, setDoc, query, orderBy, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
+import { auth, db } from '../firebase';
 
 interface UserData {
   uid: string;
@@ -20,6 +21,10 @@ export default function Settings() {
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'view_only' as UserRole });
+  const [isAddingUser, setIsAddingUser] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
   const [apiKey, setApiKey] = useState(localStorage.getItem('traces_api_key') || process.env.GEMINI_API_KEY || '');
   const [aiModel, setAiModel] = useState(localStorage.getItem('traces_ai_model') || 'gemini-3-flash-preview');
   const [confidenceThreshold, setConfidenceThreshold] = useState(Number(localStorage.getItem('traces_confidence_threshold')) || 0.7);
@@ -95,6 +100,111 @@ export default function Settings() {
     }
   };
 
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUser.email || !newUser.name) return;
+    
+    setIsAddingUser(true);
+    try {
+      // Create a document with the email as the ID
+      // This will be "claimed" by the user when they first sign in
+      await setDoc(doc(db, 'users', newUser.email), {
+        uid: '', // Placeholder until they sign in
+        email: newUser.email,
+        displayName: newUser.name,
+        role: newUser.role,
+        status: 'Pending',
+        photoURL: null,
+        createdAt: serverTimestamp()
+      });
+      
+      alert(`User ${newUser.name} added successfully with role ${roleLabels[newUser.role]}. They can now sign in with their email.`);
+      setIsAddUserModalOpen(false);
+      setNewUser({ name: '', email: '', role: 'view_only' });
+      fetchUsers();
+    } catch (error: any) {
+      console.error("Error adding user:", error);
+      alert(`Error adding user: ${error.message}`);
+    } finally {
+      setIsAddingUser(false);
+    }
+  };
+
+  const seedDemoData = async () => {
+    if (!window.confirm('This will seed demo data for containers, sales, and purchases. Continue?')) return;
+    
+    setIsSeeding(true);
+    try {
+      // Seed Containers
+      const containers = [
+        { id: 'CONT-001', supplier: 'Global Fruits Ltd', product: 'Fresh Mangoes', origin: 'India', qty: '1200 Boxes', purchaseValue: '45000', totalCost: '52000', saleQty: '1150', totalSales: '85000', gp: '33000', roi: '63.4', status: 'Open', month: 'April', createdAt: serverTimestamp() },
+        { id: 'CONT-002', supplier: 'EuroVeg S.A.', product: 'Bell Peppers', origin: 'Spain', qty: '800 Boxes', purchaseValue: '32000', totalCost: '38000', saleQty: '800', totalSales: '55000', gp: '17000', roi: '44.7', status: 'Closed', month: 'March', createdAt: serverTimestamp() },
+      ];
+
+      for (const item of containers) {
+        await setDoc(doc(db, 'containers', item.id), item);
+      }
+
+      // Seed Sales
+      const sales = [
+        { id: 'SO-1001', customer: 'Lulu Hypermarket', product: 'Fresh Mangoes', container: 'CONT-001', qty: '200', price: '75', total: '15000', type: 'Credit', status: 'Delivered', due: '2026-05-01', createdAt: serverTimestamp() },
+        { id: 'SO-1002', customer: 'Panda Retail', product: 'Bell Peppers', container: 'CONT-002', qty: '150', price: '68', total: '10200', type: 'Cash', status: 'Paid', due: '2026-04-04', createdAt: serverTimestamp() },
+      ];
+
+      for (const item of sales) {
+        await setDoc(doc(db, 'sales_orders', item.id), item);
+      }
+
+      alert('Demo data seeded successfully! Refresh the dashboard to see the results.');
+    } catch (error: any) {
+      console.error("Error seeding data:", error);
+      alert(`Error seeding data: ${error.message}`);
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
+  const handleDeleteUser = async (uid: string) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    
+    try {
+      await deleteDoc(doc(db, 'users', uid));
+      fetchUsers();
+    } catch (error) {
+      console.error("Error deleting user:", error);
+    }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result as string;
+        
+        // Update Firebase Auth Profile
+        await updateProfile(user, { photoURL: base64String });
+        
+        // Update Firestore User Document
+        await updateDoc(doc(db, 'users', user.uid), {
+          photoURL: base64String
+        });
+        
+        alert('Profile picture updated successfully!');
+        window.location.reload(); // Refresh to show new photo everywhere
+      };
+      reader.readAsDataURL(file);
+    } catch (error: any) {
+      console.error("Error uploading photo:", error);
+      alert(`Error uploading photo: ${error.message}`);
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Tabs */}
@@ -146,9 +256,15 @@ export default function Settings() {
               <div className="space-y-2">
                 <h3 className="text-xl font-bold text-slate-800">{user?.displayName}</h3>
                 <p className="text-sm text-slate-500">{user?.email}</p>
-                <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg uppercase tracking-wider">
-                  {role ? roleLabels[role] : 'User'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg uppercase tracking-wider">
+                    {role ? roleLabels[role] : 'User'}
+                  </span>
+                  <label className="cursor-pointer text-xs font-bold text-[#1F4E79] hover:underline">
+                    {isUploadingPhoto ? 'Uploading...' : 'Change Photo'}
+                    <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} disabled={isUploadingPhoto} />
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -272,16 +388,26 @@ export default function Settings() {
                         <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded uppercase tracking-wider">{user.status}</span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        {isAdmin && (
-                          <button 
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setIsEditUserModalOpen(true);
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
-                          >
-                            <i className="fa-solid fa-user-pen"></i>
-                          </button>
+                        {isAdmin && user.uid !== auth.currentUser?.uid && (
+                          <div className="flex items-center justify-center gap-2">
+                            <button 
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setIsEditUserModalOpen(true);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
+                              title="Edit Role"
+                            >
+                              <i className="fa-solid fa-user-pen"></i>
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteUser(user.uid)}
+                              className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+                              title="Delete User"
+                            >
+                              <i className="fa-solid fa-trash-can"></i>
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -326,7 +452,7 @@ export default function Settings() {
                         className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none font-mono text-sm"
                       />
                     </div>
-                    <p className="text-[10px] text-slate-400">Stored locally in your browser. Get it from Google AI Studio.</p>
+                    <p className="text-[10px] text-slate-400">Stored locally in your browser or provided via environment variables.</p>
                   </div>
 
                   <div className="space-y-2">
@@ -338,9 +464,8 @@ export default function Settings() {
                     >
                       <option value="gemini-3-flash-preview">Gemini 3 Flash (Recommended)</option>
                       <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Advanced)</option>
-                      <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                      <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                      <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                      <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>
+                      <option value="gemini-flash-latest">Gemini Flash Latest</option>
                     </select>
                   </div>
 
@@ -424,11 +549,22 @@ export default function Settings() {
         {activeTab === 'system' && (
           <div className="p-8 space-y-8">
             <div className="space-y-4">
-              <h3 className="text-xl font-bold text-slate-800">System Backup</h3>
-              <p className="text-sm text-slate-500">Download a full backup of all ERP data in JSON format.</p>
-              <button className="bg-white text-slate-700 border border-slate-200 px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
-                <i className="fa-solid fa-download text-blue-600"></i> Export All Data
-              </button>
+              <h3 className="text-xl font-bold text-slate-800">System Tools</h3>
+              <p className="text-sm text-slate-500">Manage system data and backups.</p>
+              <div className="flex flex-wrap gap-4">
+                <button className="bg-white text-slate-700 border border-slate-200 px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
+                  <i className="fa-solid fa-download text-blue-600"></i> Export All Data
+                </button>
+                {isAdmin && (
+                  <button 
+                    onClick={seedDemoData}
+                    disabled={isSeeding}
+                    className="bg-blue-50 text-blue-700 border border-blue-200 px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-blue-100 transition-colors shadow-sm disabled:opacity-50"
+                  >
+                    <i className="fa-solid fa-database"></i> {isSeeding ? 'Seeding...' : 'Seed Demo Data'}
+                  </button>
+                )}
+              </div>
             </div>
             <div className="space-y-4 pt-8 border-t border-slate-100">
               <h3 className="text-xl font-bold text-slate-800">Notifications</h3>
@@ -451,6 +587,76 @@ export default function Settings() {
       </div>
       {/* Edit User Modal */}
       <AnimatePresence>
+        {isAddUserModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAddUserModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-slate-800">Add New User</h3>
+                <button onClick={() => setIsAddUserModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                  <i className="fa-solid fa-xmark text-xl"></i>
+                </button>
+              </div>
+              <form onSubmit={handleAddUser} className="p-6 space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Full Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={newUser.name}
+                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    placeholder="e.g. John Doe"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email Address</label>
+                  <input 
+                    type="email" 
+                    required
+                    value={newUser.email}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    placeholder="e.g. john@example.com"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Initial Role</label>
+                  <select 
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    value={newUser.role}
+                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value as UserRole })}
+                  >
+                    {Object.entries(roleLabels).map(([role, label]) => (
+                      <option key={role} value={role}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="pt-4">
+                  <button 
+                    type="submit"
+                    disabled={isAddingUser}
+                    className="w-full bg-[#1F4E79] text-white py-3 rounded-xl font-bold hover:bg-[#163a5a] transition-all disabled:opacity-50"
+                  >
+                    {isAddingUser ? 'Adding User...' : 'Create User Account'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
         {isEditUserModalOpen && selectedUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div 

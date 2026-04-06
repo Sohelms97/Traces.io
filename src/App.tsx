@@ -21,12 +21,14 @@ import PurchaseManagement from "./erp/PurchaseManagement";
 import ShipmentLogistics from "./erp/ShipmentLogistics";
 import WarehouseInventory from "./erp/WarehouseInventory";
 import SalesManagement from "./erp/SalesManagement";
-import InvestorPortal from "./erp/InvestorPortal";
+import InvestorPortal from "./erp/investor/InvestorPortal";
+import InvestorDetail from "./erp/investor/InvestorDetail";
+import InvestmentDistribution from "./erp/investor/InvestmentDistribution";
+import NewInvestorWizard from "./erp/investor/NewInvestorWizard";
 import FinancialReports from "./erp/FinancialReports";
 import TraceabilityTracker from "./erp/TraceabilityTracker";
 import Settings from "./erp/Settings";
 import Documents from "./erp/Documents";
-import InvestorFlowForm from "./erp/InvestorFlowForm";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import AccessDenied from "./pages/AccessDenied";
@@ -66,7 +68,7 @@ function AppContent() {
   const isLoginPage = location.pathname === '/login';
 
   return (
-    <div className={`min-h-screen ${isERP ? 'bg-slate-100' : 'bg-white dark:bg-slate-950'} font-sans text-slate-900 dark:text-slate-100 selection:bg-green-100 dark:selection:bg-green-900 selection:text-green-900 dark:selection:text-green-100 transition-colors duration-300`}>
+    <div className={`min-h-screen ${isERP ? 'bg-slate-100 text-slate-900' : 'bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100'} font-sans selection:bg-green-100 dark:selection:bg-green-900 selection:text-green-900 dark:selection:text-green-100 transition-colors duration-300`}>
       {!isERP && !isLoginPage && <Navbar />}
       <main>
         <Routes>
@@ -92,7 +94,9 @@ function AppContent() {
             <Route path="inventory" element={<ProtectedRoute requiredPath="/erp/inventory"><WarehouseInventory /></ProtectedRoute>} />
             <Route path="sales" element={<ProtectedRoute requiredPath="/erp/sales"><SalesManagement /></ProtectedRoute>} />
             <Route path="investors" element={<ProtectedRoute requiredPath="/erp/investors"><InvestorPortal /></ProtectedRoute>} />
-            <Route path="investors/new" element={<ProtectedRoute requiredPath="/erp/investors"><InvestorFlowForm /></ProtectedRoute>} />
+            <Route path="investors/new" element={<ProtectedRoute requiredPath="/erp/investors"><NewInvestorWizard /></ProtectedRoute>} />
+            <Route path="investors/:id" element={<ProtectedRoute requiredPath="/erp/investors"><InvestorDetail /></ProtectedRoute>} />
+            <Route path="investors/distribution" element={<ProtectedRoute requiredPath="/erp/investors"><InvestmentDistribution /></ProtectedRoute>} />
             <Route path="reports" element={<ProtectedRoute requiredPath="/erp/reports"><FinancialReports /></ProtectedRoute>} />
             <Route path="traceability" element={<ProtectedRoute requiredPath="/erp/traceability"><TraceabilityTracker /></ProtectedRoute>} />
             <Route path="documents" element={<ProtectedRoute requiredPath="/erp/documents"><Documents /></ProtectedRoute>} />

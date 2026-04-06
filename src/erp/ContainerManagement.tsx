@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { collection, getDocs, doc, updateDoc, setDoc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function ContainerManagement() {
@@ -14,27 +16,25 @@ export default function ContainerManagement() {
   const { isAdmin } = useAuth();
 
   useEffect(() => {
-    const stored = localStorage.getItem('traces_containers');
-    const initialContainers = [
-      { id: 'TFC/EX026/25', supplier: 'Tabuk Fisheries', product: 'Sea Bream', origin: 'Saudi Arabia', qty: '12,000 KG', purchaseValue: '280,000', totalCost: '312,360', saleQty: '12,000 KG', totalSales: '322,200', gp: '9,840', roi: '3.15%', status: 'Closed', month: 'Nov 2025' },
-      { id: 'FBIU5326683', supplier: 'Hong Long Seafood', product: 'Keski', origin: 'Vietnam', qty: '3,000 Box', purchaseValue: '100,000', totalCost: '115,036', saleQty: '3,000 Box', totalSales: '131,850', gp: '16,814', roi: '14.62%', status: 'Closed', month: 'Dec 2025' },
-      { id: 'Inv.34', supplier: 'FMA Pakistan', product: 'Squid', origin: 'Pakistan', qty: '2,260 Box', purchaseValue: '280,000', totalCost: '325,890', saleQty: '2,260 Box', totalSales: '312,610', gp: '-13,280', roi: '-4.08%', status: 'Closed', month: 'Dec 2025' },
-      { id: 'SZLU9069865', supplier: 'PAKTHAI IMPEX', product: 'Rohu', origin: 'Thailand', qty: '27,000 KG', purchaseValue: '150,000', totalCost: '165,000', saleQty: '0', totalSales: '0', gp: '0', roi: '0%', status: 'Open', month: 'Jan 2026' },
-      { id: 'OTPU6690769', supplier: 'QUE KY FOODS', product: 'Pangasius Fillet', origin: 'Vietnam', qty: '25,000 KG', purchaseValue: '110,000', totalCost: '121,477', saleQty: '0', totalSales: '0', gp: '0', roi: '0%', status: 'Open', month: 'Feb 2026' },
-    ];
+    const q = query(collection(db, 'containers'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      if (docs.length === 0) {
+        // Seed initial data if empty
+        const initialContainers = [
+          { id: 'TFC/EX026/25', supplier: 'Tabuk Fisheries', product: 'Sea Bream', origin: 'Saudi Arabia', qty: '12,000 KG', purchaseValue: '280,000', totalCost: '312,360', saleQty: '12,000 KG', totalSales: '322,200', gp: '9,840', roi: '3.15%', status: 'Closed', month: 'Nov 2025', createdAt: serverTimestamp() },
+          { id: 'FBIU5326683', supplier: 'Hong Long Seafood', product: 'Keski', origin: 'Vietnam', qty: '3,000 Box', purchaseValue: '100,000', totalCost: '115,036', saleQty: '3,000 Box', totalSales: '131,850', gp: '16,814', roi: '14.62%', status: 'Closed', month: 'Dec 2025', createdAt: serverTimestamp() },
+        ];
+        initialContainers.forEach(async (c) => {
+          await setDoc(doc(db, 'containers', c.id), c);
+        });
+      } else {
+        setContainers(docs);
+      }
+    });
 
-    if (stored) {
-      setContainers(JSON.parse(stored));
-    } else {
-      setContainers(initialContainers);
-      localStorage.setItem('traces_containers', JSON.stringify(initialContainers));
-    }
+    return () => unsubscribe();
   }, []);
-
-  const saveContainers = (updated: any[]) => {
-    setContainers(updated);
-    localStorage.setItem('traces_containers', JSON.stringify(updated));
-  };
 
   // Form State
   const [formData, setFormData] = useState({
@@ -88,28 +88,45 @@ export default function ContainerManagement() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (editingContainer) {
-      saveContainers(containers.map(c => c.id === editingContainer.id ? { ...c, ...formData } : c));
+      try {
+        await updateDoc(doc(db, 'containers', editingContainer.id), {
+          ...formData,
+        });
+      } catch (error) {
+        console.error("Error updating container:", error);
+      }
     } else {
-      const newContainer = {
-        ...formData,
-        totalCost: (parseFloat((formData.purchaseValue || '0').replace(/,/g, '')) * 1.1).toLocaleString(),
-        saleQty: '0',
-        totalSales: '0',
-        gp: '0',
-        roi: '0%',
-        month: new Date().toLocaleString('default', { month: 'short', year: 'numeric' })
-      };
-      saveContainers([newContainer, ...containers]);
+      try {
+        const newId = formData.id || `CONT-${Date.now()}`;
+        const newContainer = {
+          ...formData,
+          id: newId,
+          totalCost: (parseFloat((formData.purchaseValue || '0').replace(/,/g, '')) * 1.1).toLocaleString(),
+          saleQty: '0',
+          totalSales: '0',
+          gp: '0',
+          roi: '0%',
+          month: new Date().toLocaleString('default', { month: 'short', year: 'numeric' }),
+          createdAt: serverTimestamp()
+        };
+        await setDoc(doc(db, 'containers', newId), newContainer);
+      } catch (error) {
+        console.error("Error adding container:", error);
+      }
     }
     setIsModalOpen(false);
   };
 
-  const confirmDelete = () => {
-    saveContainers(containers.filter(c => c.id !== containerToDelete.id));
-    setIsDeleteModalOpen(false);
-    setContainerToDelete(null);
+  const confirmDelete = async () => {
+    try {
+      await deleteDoc(doc(db, 'containers', containerToDelete.id));
+      setIsDeleteModalOpen(false);
+      setContainerToDelete(null);
+    } catch (error) {
+      console.error("Error deleting container:", error);
+    }
   };
 
   return (
@@ -172,7 +189,7 @@ export default function ContainerManagement() {
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {filteredContainers.map((row, i) => (
-                <tr key={i} className="hover:bg-slate-50 transition-colors group">
+                <tr key={i} className="hover:bg-blue-50/40 transition-all duration-200 group relative">
                   <td className="px-6 py-4 font-bold text-slate-700">{row.id || row.container_number}</td>
                   <td className="px-6 py-4 text-slate-600">{row.supplier || row.supplier_name}</td>
                   <td className="px-6 py-4 text-slate-600">{row.product || row.product_name}</td>
@@ -193,10 +210,10 @@ export default function ContainerManagement() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
                       <button 
                         onClick={() => setSelectedContainer(row)}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors" title="View"
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="View"
                       >
                         <i className="fa-solid fa-eye"></i>
                       </button>
@@ -204,13 +221,13 @@ export default function ContainerManagement() {
                         <>
                           <button 
                             onClick={() => handleOpenEditModal(row)}
-                            className="p-1.5 text-slate-400 hover:text-green-600 transition-colors" title="Edit"
+                            className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Edit"
                           >
                             <i className="fa-solid fa-pen-to-square"></i>
                           </button>
                           <button 
                             onClick={() => handleOpenDeleteModal(row)}
-                            className="p-1.5 text-slate-400 hover:text-red-600 transition-colors" title="Delete"
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"
                           >
                             <i className="fa-solid fa-trash-can"></i>
                           </button>

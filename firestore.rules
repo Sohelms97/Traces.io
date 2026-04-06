@@ -81,12 +81,10 @@ service cloud.firestore {
         'view_only'
       ];
       
-      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'role', 'createdAt', 'photoURL']) &&
-             data.uid == request.auth.uid &&
-             data.email == request.auth.token.email &&
+      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'role', 'createdAt', 'photoURL', 'status']) &&
              isValidEmail(data.email) &&
              data.role in allowedRoles &&
-             (data.createdAt is timestamp && (data.createdAt == request.time || (request.method == 'update' && data.createdAt == resource.data.createdAt)));
+             (data.createdAt is timestamp || data.createdAt is string || (request.method == 'update' && data.createdAt == resource.data.createdAt));
     }
 
     function isValidContainer(data) {
@@ -98,24 +96,71 @@ service cloud.firestore {
              (data.createdAt is timestamp || data.createdAt is string);
     }
 
+    function isValidPO(data) {
+      return hasOnlyAllowedFields(['id', 'supplier', 'product', 'qty', 'unitPrice', 'total', 'status', 'date', 'createdAt']) &&
+             data.id is string && data.id.size() > 0 &&
+             data.supplier is string &&
+             data.status is string &&
+             (data.createdAt is timestamp || data.createdAt is string);
+    }
+
+    function isValidSalesOrder(data) {
+      return hasOnlyAllowedFields(['id', 'customer', 'product', 'container', 'qty', 'price', 'total', 'type', 'status', 'due', 'createdAt']) &&
+             data.id is string && data.id.size() > 0 &&
+             data.customer is string &&
+             data.status is string &&
+             (data.createdAt is timestamp || data.createdAt is string);
+    }
+
+    function isValidInvestor(data) {
+      return hasOnlyAllowedFields(['id', 'name', 'amount', 'date', 'product', 'roi', 'paid', 'outstanding', 'status', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 &&
+             data.status in ['Active', 'Inactive'] &&
+             (data.createdAt is timestamp || data.createdAt is string);
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
 
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && 
-                    (request.resource.data.role != 'admin' || 
-                     request.auth.token.email == "sohelms97@gmail.com" || 
-                     request.auth.token.email == "sohems97@gmail.com");
-      allow update: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && 
-                    (request.resource.data.role == resource.data.role || isAdmin());
+      allow create: if isAuthenticated() && (
+        (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.uid == request.auth.uid && request.resource.data.email == request.auth.token.email) || 
+        isAdmin()
+      );
+      allow update: if isAuthenticated() && (
+        (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.uid == request.auth.uid && request.resource.data.email == request.auth.token.email) || 
+        isAdmin()
+      );
+      allow delete: if isAdmin();
     }
 
     match /containers/{containerId} {
       allow read: if isAuthenticated();
       allow create: if isAdmin() && isValidContainer(request.resource.data);
       allow update: if isAdmin() && isValidContainer(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /purchase_orders/{poId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidPO(request.resource.data);
+      allow update: if isAdmin() && isValidPO(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /sales_orders/{soId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidSalesOrder(request.resource.data);
+      allow update: if isAdmin() && isValidSalesOrder(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /investors/{investorId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidInvestor(request.resource.data);
+      allow update: if isAdmin() && isValidInvestor(request.resource.data);
       allow delete: if isAdmin();
     }
 

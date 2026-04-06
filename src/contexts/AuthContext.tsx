@@ -53,18 +53,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (userDoc.exists()) {
             setRole(userDoc.data().role as UserRole);
           } else {
-            // Default role for new users
-            const isAdmin = user.email === 'sohelms97@gmail.com' || user.email === 'sohems97@gmail.com'; 
-            const newRole: UserRole = isAdmin ? 'admin' : 'view_only';
+            // Check if a user was pre-created by email
+            const emailDocRef = doc(db, 'users', user.email!);
+            const emailDoc = await getDoc(emailDocRef);
             
-            await setDoc(userDocRef, {
-              uid: user.uid,
-              email: user.email,
-              displayName: user.displayName,
-              role: newRole,
-              createdAt: serverTimestamp()
-            });
-            setRole(newRole);
+            if (emailDoc.exists()) {
+              const preData = emailDoc.data();
+              const newRole = preData.role as UserRole;
+              
+              await setDoc(userDocRef, {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName || preData.displayName || 'User',
+                role: newRole,
+                photoURL: user.photoURL || preData.photoURL || null,
+                createdAt: serverTimestamp()
+              });
+              setRole(newRole);
+              // Optional: delete the email-based document to clean up
+              // await deleteDoc(emailDocRef);
+            } else {
+              // Default role for new users
+              const isAdmin = user.email === 'sohelms97@gmail.com' || user.email === 'sohems97@gmail.com'; 
+              const newRole: UserRole = isAdmin ? 'admin' : 'view_only';
+              
+              await setDoc(userDocRef, {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                role: newRole,
+                createdAt: serverTimestamp()
+              });
+              setRole(newRole);
+            }
           }
         } else {
           setRole(null);
@@ -95,26 +116,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginWithEmail = async (email: string, pass: string) => {
-    await signInWithEmailAndPassword(auth, email, pass);
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch (error: any) {
+      console.error("Login with email error:", error.code, error.message);
+      throw error;
+    }
   };
 
   const registerWithEmail = async (email: string, pass: string, name: string) => {
-    const { user } = await createUserWithEmailAndPassword(auth, email, pass);
-    await updateProfile(user, { displayName: name });
-    
-    // The useEffect will handle the Firestore document creation
-    const userDocRef = doc(db, 'users', user.uid);
-    const isAdmin = email === 'sohelms97@gmail.com' || email === 'sohems97@gmail.com'; 
-    const newRole: UserRole = isAdmin ? 'admin' : 'view_only';
-    
-    await setDoc(userDocRef, {
-      uid: user.uid,
-      email: email,
-      displayName: name,
-      role: newRole,
-      createdAt: serverTimestamp()
-    });
-    setRole(newRole);
+    try {
+      const { user } = await createUserWithEmailAndPassword(auth, email, pass);
+      await updateProfile(user, { displayName: name });
+      
+      // The useEffect will handle the Firestore document creation
+      const userDocRef = doc(db, 'users', user.uid);
+      const isAdmin = email === 'sohelms97@gmail.com' || email === 'sohems97@gmail.com'; 
+      const newRole: UserRole = isAdmin ? 'admin' : 'view_only';
+      
+      await setDoc(userDocRef, {
+        uid: user.uid,
+        email: email,
+        displayName: name,
+        role: newRole,
+        photoURL: null,
+        status: 'Active',
+        createdAt: serverTimestamp()
+      });
+      setRole(newRole);
+    } catch (error: any) {
+      console.error("Registration error:", error.code, error.message);
+      throw error;
+    }
   };
 
   const resetPassword = async (email: string) => {
