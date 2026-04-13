@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { Link } from "react-router-dom";
 import { ShieldCheck, Users, Cpu, CheckCircle2, Target, Eye, Award, History, Leaf, TrendingUp } from "lucide-react";
+import { useCMS } from "../hooks/useCMS";
 
 const fadeInUp = {
   initial: { opacity: 0, y: 30 },
@@ -10,6 +11,21 @@ const fadeInUp = {
 };
 
 export default function About() {
+  const { cmsData, loading } = useCMS();
+  
+  const about = cmsData.about || {
+    title: "Our Story & Mission",
+    content: "Farmers Market Asia was founded on a simple yet powerful premise: consumers and investors deserve to know exactly where their food comes from. In an era of complex global logistics, the origin of our food had become a mystery.",
+    mission: "To empower consumers and investors with real-time, verified data about every product we handle, ensuring the highest standards of food safety and ethical trade practices across Asia and beyond.",
+    vision: "To become the global benchmark for food traceability, where \"TRACES Certified\" is synonymous with absolute trust, quality, and sustainability in the international marketplace.",
+    values: [
+      { id: '1', title: "Transparency", desc: "We hide nothing. Every step is recorded and accessible." },
+      { id: '2', title: "Integrity", desc: "Honesty in our data and our relationships is non-negotiable." },
+      { id: '3', title: "Sustainability", desc: "Protecting the sources that provide our food for future generations." },
+      { id: '4', title: "Innovation", desc: "Constantly evolving our tech to provide better traceability." }
+    ]
+  };
+
   return (
     <div className="pt-20">
       {/* Hero Section */}
@@ -28,7 +44,7 @@ export default function About() {
             animate={{ opacity: 1, y: 0 }}
             className="text-5xl md:text-6xl font-bold mb-6"
           >
-            Our Story & Mission
+            {about.title}
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -47,16 +63,8 @@ export default function About() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <motion.div {...fadeInUp}>
               <h2 className="text-4xl font-bold text-blue-950 dark:text-white mb-8">How It All Started</h2>
-              <div className="space-y-6 text-slate-600 dark:text-slate-400 text-lg leading-relaxed">
-                <p>
-                  Farmers Market Asia was founded on a simple yet powerful premise: consumers and investors deserve to know exactly where their food comes from. In an era of complex global logistics, the origin of our food had become a mystery.
-                </p>
-                <p>
-                  We saw a gap in the market—a lack of trust and a surplus of ambiguity. That's why we created TRACES, our proprietary platform that provides end-to-end visibility from the moment a product is harvested to the moment it reaches the consumer.
-                </p>
-                <p>
-                  Today, we are more than just a trading company. We are a technology-driven logistics partner that prioritizes food safety, ethical sourcing, and investor confidence above all else.
-                </p>
+              <div className="space-y-6 text-slate-600 dark:text-slate-400 text-lg leading-relaxed whitespace-pre-line">
+                {about.content}
               </div>
             </motion.div>
             <motion.div 
@@ -89,7 +97,7 @@ export default function About() {
               </div>
               <h3 className="text-3xl font-bold text-blue-950 dark:text-white mb-6">Our Mission</h3>
               <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">
-                To empower consumers and investors with real-time, verified data about every product we handle, ensuring the highest standards of food safety and ethical trade practices across Asia and beyond.
+                {about.mission}
               </p>
             </motion.div>
             <motion.div 
@@ -101,7 +109,7 @@ export default function About() {
               </div>
               <h3 className="text-3xl font-bold text-blue-950 dark:text-white mb-6">Our Vision</h3>
               <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">
-                To become the global benchmark for food traceability, where "TRACES Certified" is synonymous with absolute trust, quality, and sustainability in the international marketplace.
+                {about.vision}
               </p>
             </motion.div>
           </div>
@@ -116,14 +124,9 @@ export default function About() {
             <p className="text-slate-500 dark:text-slate-400 text-lg">The principles that guide every decision we make.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              { icon: <ShieldCheck size={32} />, title: "Transparency", desc: "We hide nothing. Every step is recorded and accessible." },
-              { icon: <Award size={32} />, title: "Integrity", desc: "Honesty in our data and our relationships is non-negotiable." },
-              { icon: <Leaf size={32} />, title: "Sustainability", desc: "Protecting the sources that provide our food for future generations." },
-              { icon: <Cpu size={32} />, title: "Innovation", desc: "Constantly evolving our tech to provide better traceability." }
-            ].map((value, i) => (
+            {(about.values || []).map((value: any, i: number) => (
               <motion.div 
-                key={i}
+                key={value.id || i}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -131,7 +134,11 @@ export default function About() {
                 className="text-center p-8"
               >
                 <div className="w-20 h-20 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center text-green-600 mx-auto mb-6 shadow-inner dark:shadow-slate-800">
-                  {value.icon}
+                  {i === 0 && <ShieldCheck size={32} />}
+                  {i === 1 && <Award size={32} />}
+                  {i === 2 && <Leaf size={32} />}
+                  {i === 3 && <Cpu size={32} />}
+                  {i > 3 && <CheckCircle2 size={32} />}
                 </div>
                 <h4 className="text-xl font-bold text-blue-950 dark:text-white mb-3">{value.title}</h4>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">{value.desc}</p>

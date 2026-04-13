@@ -1,17 +1,33 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, getDocs, doc, updateDoc, setDoc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, setDoc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp, writeBatch, increment } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
+import ConfirmationModal from '../components/ConfirmationModal';
+import ImportExcelModal from '../components/ImportExcelModal';
+import DocumentUploadModal from '../components/DocumentUploadModal';
+import * as XLSX from 'xlsx';
+import { Download } from 'lucide-react';
 
 export default function PurchaseManagement() {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<'pos' | 'suppliers'>('pos');
   const [pos, setPos] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isDeletePOModalOpen, setIsDeletePOModalOpen] = useState(false);
+  const [isDeleteSupplierModalOpen, setIsDeleteSupplierModalOpen] = useState(false);
+  const [poToDelete, setPoToDelete] = useState<any>(null);
+  const [supplierToDelete, setSupplierToDelete] = useState<any>(null);
   const [editingPO, setEditingPO] = useState<any>(null);
   const [editingSupplier, setEditingSupplier] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const { isAdmin } = useAuth();
+  const [tempDocuments, setTempDocuments] = useState<{ data: any, files: { file: File; base64: string }[] } | null>(null);
+  const [isPreFillModalOpen, setIsPreFillModalOpen] = useState(false);
 
   // Form States
   const [poForm, setPoForm] = useState({
@@ -71,6 +87,93 @@ export default function PurchaseManagement() {
     };
   }, []);
 
+  useEffect(() => {
+    if (location.state?.openNewModal) {
+      setActiveTab('pos');
+      handleOpenModal();
+      // Clear state to prevent reopening on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const filteredData = React.useMemo(() => {
+    const data = activeTab === 'pos' ? pos : suppliers;
+    let result = data.filter(item => {
+      const searchStr = searchTerm.toLowerCase();
+      if (activeTab === 'pos') {
+        return (item.id || '').toLowerCase().includes(searchStr) ||
+               (item.supplier || '').toLowerCase().includes(searchStr) ||
+               (item.product || '').toLowerCase().includes(searchStr);
+      } else {
+        return (item.name || '').toLowerCase().includes(searchStr) ||
+               (item.country || '').toLowerCase().includes(searchStr);
+      }
+    });
+
+    if (sortConfig !== null) {
+      result.sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+        
+        if (aValue === undefined || bValue === undefined) return 0;
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return result;
+  }, [activeTab, pos, suppliers, searchTerm, sortConfig]);
+
+  const handleExportExcel = () => {
+    if (filteredData.length === 0) {
+      alert('No data to export');
+      return;
+    }
+
+    let exportData;
+    if (activeTab === 'pos') {
+      exportData = filteredData.map(po => ({
+        'PO Number': po.id,
+        'Supplier': po.supplier,
+        'Product': po.product,
+        'Qty': po.qty,
+        'Unit': po.unit,
+        'Unit Price': po.unitPrice,
+        'Total': po.total,
+        'Status': po.status,
+        'Date': po.date
+      }));
+    } else {
+      exportData = filteredData.map(supplier => ({
+        'Supplier Name': supplier.name,
+        'Country': supplier.country,
+        'Products': supplier.products,
+        'Total Orders': supplier.orders,
+        'Total Value': supplier.value,
+        'Status': supplier.status
+      }));
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, activeTab === 'pos' ? 'Purchase Orders' : 'Suppliers');
+    XLSX.writeFile(workbook, `${activeTab === 'pos' ? 'PurchaseOrders' : 'Suppliers'}_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   const handleOpenModal = (item?: any) => {
     if (activeTab === 'pos') {
       if (item) {
@@ -105,6 +208,23 @@ export default function PurchaseManagement() {
     setIsModalOpen(true);
   };
 
+  const handleDocumentSave = (data: any, files: { file: File; base64: string }[]) => {
+    const procurement = data.procurement || {};
+    
+    setPoForm(prev => ({
+      ...prev,
+      id: procurement.po_number || prev.id,
+      supplier: procurement.supplier_name || prev.supplier,
+      product: procurement.items?.[0]?.description || prev.product,
+      qty: procurement.items?.[0]?.quantity || prev.qty,
+      unit: procurement.items?.[0]?.unit || prev.unit,
+      unitPrice: procurement.items?.[0]?.unit_price || prev.unitPrice,
+    }));
+
+    setTempDocuments({ data, files });
+    setIsPreFillModalOpen(false);
+  };
+
   const handleSavePO = async () => {
     try {
       const total = (parseFloat(poForm.qty) * parseFloat(poForm.unitPrice)).toLocaleString();
@@ -116,11 +236,48 @@ export default function PurchaseManagement() {
         createdAt: editingPO ? editingPO.createdAt : serverTimestamp()
       };
 
+      const poId = poForm.id || `PO-${Date.now()}`;
       if (editingPO) {
         await updateDoc(doc(db, 'purchase_orders', editingPO.id), poData);
       } else {
-        const newId = poForm.id || `PO-${Date.now()}`;
-        await setDoc(doc(db, 'purchase_orders', newId), { ...poData, id: newId });
+        await setDoc(doc(db, 'purchase_orders', poId), { ...poData, id: poId });
+
+        // Save temporary documents if any
+        if (tempDocuments) {
+          const { data, files } = tempDocuments;
+          const { saveExtractedData } = await import('../lib/document-router');
+          
+          for (const f of files) {
+            await saveExtractedData({
+              fileName: f.file.name,
+              fileSize: f.file.size,
+              base64Data: f.base64,
+              documentType: data.document_type || 'Auto-Detect',
+              extractedData: data,
+              linkedRecordId: poId
+            });
+          }
+          setTempDocuments(null);
+        }
+
+        // SYNC: Update Supplier
+        if (poForm.supplier) {
+          try {
+            const supplier = suppliers.find(s => s.name === poForm.supplier);
+            if (supplier) {
+              const qtyNum = parseFloat(poForm.qty) || 0;
+              const priceNum = parseFloat(poForm.unitPrice) || 0;
+              const totalVal = qtyNum * priceNum;
+              await updateDoc(doc(db, 'suppliers', supplier.id), {
+                orders: increment(1),
+                value: increment(totalVal),
+                updatedAt: serverTimestamp()
+              });
+            }
+          } catch (e) {
+            console.error("Error updating supplier:", e);
+          }
+        }
       }
       setIsModalOpen(false);
     } catch (error) {
@@ -150,21 +307,106 @@ export default function PurchaseManagement() {
     }
   };
 
-  const handleDeletePO = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this PO?')) return;
+  const handleDeletePO = (po: any) => {
+    setPoToDelete(po);
+    setIsDeletePOModalOpen(true);
+  };
+
+  const confirmDeletePO = async () => {
+    if (!poToDelete) return;
     try {
-      await deleteDoc(doc(db, 'purchase_orders', id));
+      // SYNC: Revert Supplier updates
+      if (poToDelete.supplier) {
+        try {
+          const supplier = suppliers.find(s => s.name === poToDelete.supplier);
+          if (supplier) {
+            const qtyNum = parseFloat(poToDelete.qty) || 0;
+            const priceNum = parseFloat(poToDelete.unitPrice) || 0;
+            const totalVal = qtyNum * priceNum;
+            await updateDoc(doc(db, 'suppliers', supplier.id), {
+              orders: increment(-1),
+              value: increment(-totalVal),
+              updatedAt: serverTimestamp()
+            });
+          }
+        } catch (e) {
+          console.error("Error reverting supplier sync:", e);
+        }
+      }
+
+      await deleteDoc(doc(db, 'purchase_orders', poToDelete.id));
+      setPoToDelete(null);
     } catch (error) {
       console.error("Error deleting PO:", error);
     }
   };
 
-  const handleDeleteSupplier = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this supplier?')) return;
+  const handleDeleteSupplier = (supplier: any) => {
+    setSupplierToDelete(supplier);
+    setIsDeleteSupplierModalOpen(true);
+  };
+
+  const confirmDeleteSupplier = async () => {
+    if (!supplierToDelete) return;
     try {
-      await deleteDoc(doc(db, 'suppliers', id));
+      await deleteDoc(doc(db, 'suppliers', supplierToDelete.id));
+      setSupplierToDelete(null);
     } catch (error) {
       console.error("Error deleting supplier:", error);
+    }
+  };
+
+  const poSchema = {
+    id: { label: 'PO Number', required: true },
+    supplier: { label: 'Supplier', required: true },
+    product: { label: 'Product', required: true },
+    qty: { label: 'Qty', required: true, type: 'number' as const },
+    unit: { label: 'Unit', required: true },
+    unitPrice: { label: 'Unit Price', required: true, type: 'number' as const },
+    status: { label: 'Status', required: true },
+  };
+
+  const supplierSchema = {
+    name: { label: 'Supplier Name', required: true },
+    country: { label: 'Country', required: true },
+    products: { label: 'Products', required: true },
+    status: { label: 'Status', required: true },
+  };
+
+  const handleImport = async (data: any[]) => {
+    const batch = writeBatch(db);
+    const collectionName = activeTab === 'pos' ? 'purchase_orders' : 'suppliers';
+    
+    data.forEach((item) => {
+      let newId = item.id;
+      if (!newId) {
+        newId = activeTab === 'pos' ? `PO-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` : `S-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      }
+      
+      const docData = {
+        ...item,
+        id: newId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      if (activeTab === 'pos') {
+        docData.total = (parseFloat(String(item.qty || '0')) * parseFloat(String(item.unitPrice || '0'))).toLocaleString();
+        docData.date = item.date || new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+      } else {
+        docData.orders = item.orders || 0;
+        docData.value = item.value || '0';
+      }
+
+      const docRef = doc(db, collectionName, newId);
+      batch.set(docRef, docData);
+    });
+
+    try {
+      await batch.commit();
+    } catch (error) {
+      console.error("Error importing data:", error);
+      throw error;
     }
   };
 
@@ -194,17 +436,37 @@ export default function PurchaseManagement() {
             type="text" 
             placeholder={`Search ${activeTab === 'pos' ? 'orders' : 'suppliers'}...`} 
             className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-64 shadow-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        {isAdmin && (
-          <button 
-            onClick={() => handleOpenModal()}
-            className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors shadow-sm"
-          >
-            <i className={`fa-solid ${activeTab === 'pos' ? 'fa-plus' : 'fa-user-plus'}`}></i> 
-            {activeTab === 'pos' ? 'New Purchase Order' : 'Add New Supplier'}
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {isAdmin && (
+            <>
+              <button 
+                onClick={handleExportExcel}
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                <Download className="w-4 h-4 text-green-600" /> Export Excel
+              </button>
+              <button 
+                onClick={() => setIsImportModalOpen(true)}
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                <i className="fa-solid fa-file-import text-green-600"></i> Import Excel
+              </button>
+            </>
+          )}
+          {isAdmin && (
+            <button 
+              onClick={() => handleOpenModal()}
+              className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors shadow-sm"
+            >
+              <i className={`fa-solid ${activeTab === 'pos' ? 'fa-plus' : 'fa-user-plus'}`}></i> 
+              {activeTab === 'pos' ? 'New Purchase Order' : 'Add New Supplier'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -214,19 +476,51 @@ export default function PurchaseManagement() {
             <table className="w-full text-left">
               <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider font-bold">
                 <tr>
-                  <th className="px-6 py-4">PO Number</th>
-                  <th className="px-6 py-4">Supplier</th>
-                  <th className="px-6 py-4">Product</th>
-                  <th className="px-6 py-4">Qty</th>
-                  <th className="px-6 py-4 text-right">Unit Price</th>
-                  <th className="px-6 py-4 text-right">Total (SAR)</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('id')}>
+                    <div className="flex items-center gap-1">
+                      PO Number {sortConfig?.key === 'id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('supplier')}>
+                    <div className="flex items-center gap-1">
+                      Supplier {sortConfig?.key === 'supplier' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('product')}>
+                    <div className="flex items-center gap-1">
+                      Product {sortConfig?.key === 'product' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('qty')}>
+                    <div className="flex items-center gap-1">
+                      Qty {sortConfig?.key === 'qty' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('unitPrice')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Unit Price {sortConfig?.key === 'unitPrice' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('total')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Total (AED) {sortConfig?.key === 'total' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('status')}>
+                    <div className="flex items-center gap-1">
+                      Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('date')}>
+                    <div className="flex items-center gap-1">
+                      Date {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
                   <th className="px-6 py-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {pos.map((po, i) => (
+                {filteredData.map((po, i) => (
                   <tr key={i} className="hover:bg-blue-50/40 transition-all duration-200 group relative">
                     <td className="px-6 py-4 font-bold text-slate-700">{po.id}</td>
                     <td className="px-6 py-4 text-slate-600">{po.supplier}</td>
@@ -254,7 +548,7 @@ export default function PurchaseManagement() {
                               <i className="fa-solid fa-pen-to-square"></i>
                             </button>
                             <button 
-                              onClick={() => handleDeletePO(po.id)}
+                              onClick={() => handleDeletePO(po)}
                               className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             >
                               <i className="fa-solid fa-trash-can"></i>
@@ -273,17 +567,41 @@ export default function PurchaseManagement() {
             <table className="w-full text-left">
               <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider font-bold">
                 <tr>
-                  <th className="px-6 py-4">Supplier Name</th>
-                  <th className="px-6 py-4">Country</th>
-                  <th className="px-6 py-4">Products</th>
-                  <th className="px-6 py-4 text-center">Total Orders</th>
-                  <th className="px-6 py-4 text-right">Total Value (SAR)</th>
-                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>
+                    <div className="flex items-center gap-1">
+                      Supplier Name {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('country')}>
+                    <div className="flex items-center gap-1">
+                      Country {sortConfig?.key === 'country' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('products')}>
+                    <div className="flex items-center gap-1">
+                      Products {sortConfig?.key === 'products' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('orders')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Total Orders {sortConfig?.key === 'orders' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('value')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Total Value (AED) {sortConfig?.key === 'value' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('status')}>
+                    <div className="flex items-center gap-1">
+                      Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
                   <th className="px-6 py-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {suppliers.map((supplier, i) => (
+                {filteredData.map((supplier, i) => (
                   <tr key={i} className="hover:bg-blue-50/40 transition-all duration-200 group relative">
                     <td className="px-6 py-4 font-bold text-slate-700">{supplier.name}</td>
                     <td className="px-6 py-4 text-slate-600">{supplier.country}</td>
@@ -309,7 +627,7 @@ export default function PurchaseManagement() {
                               <i className="fa-solid fa-pen-to-square"></i>
                             </button>
                             <button 
-                              onClick={() => handleDeleteSupplier(supplier.id)}
+                              onClick={() => handleDeleteSupplier(supplier)}
                               className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             >
                               <i className="fa-solid fa-trash-can"></i>
@@ -354,6 +672,26 @@ export default function PurchaseManagement() {
                 </button>
               </div>
               <div className="p-8 space-y-4">
+                {activeTab === 'pos' && !editingPO && (
+                  <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white">
+                        <i className="fa-solid fa-wand-magic-sparkles"></i>
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-blue-900">AI Pre-fill</p>
+                        <p className="text-[10px] text-blue-700">Upload Quote or PO to auto-complete this form</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setIsPreFillModalOpen(true)}
+                      className="px-4 py-2 bg-white text-blue-600 border border-blue-200 rounded-lg text-xs font-bold hover:bg-blue-50 transition-all shadow-sm"
+                    >
+                      {tempDocuments ? 'Change Document' : 'Upload Document'}
+                    </button>
+                  </div>
+                )}
+
                 {activeTab === 'pos' ? (
                   <>
                     <div className="grid grid-cols-2 gap-4">
@@ -428,7 +766,7 @@ export default function PurchaseManagement() {
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Unit Price (SAR)</label>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Unit Price (AED)</label>
                         <input 
                           type="number" 
                           className="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 outline-none text-slate-900"
@@ -440,7 +778,7 @@ export default function PurchaseManagement() {
                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
                       <span className="text-sm font-bold text-slate-500">Total Amount:</span>
                       <span className="text-xl font-bold text-[#1F4E79]">
-                        SAR {(parseFloat(poForm.qty || '0') * parseFloat(poForm.unitPrice || '0')).toLocaleString()}
+                        AED {(parseFloat(poForm.qty || '0') * parseFloat(poForm.unitPrice || '0')).toLocaleString()}
                       </span>
                     </div>
                   </>
@@ -505,6 +843,59 @@ export default function PurchaseManagement() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmationModal 
+        isOpen={isDeletePOModalOpen}
+        onClose={() => setIsDeletePOModalOpen(false)}
+        onConfirm={confirmDeletePO}
+        title="Confirm PO Deletion"
+        message={`Are you sure you want to delete purchase order ${poToDelete?.id}? This action cannot be undone.`}
+        confirmText="Delete PO"
+      />
+
+      <ConfirmationModal 
+        isOpen={isDeleteSupplierModalOpen}
+        onClose={() => setIsDeleteSupplierModalOpen(false)}
+        onConfirm={confirmDeleteSupplier}
+        title="Confirm Supplier Deletion"
+        message={`Are you sure you want to delete supplier ${supplierToDelete?.name}? This will remove all their contact information.`}
+        confirmText="Delete Supplier"
+      />
+
+      <ImportExcelModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleImport}
+        title={activeTab === 'pos' ? 'Purchase Orders' : 'Suppliers'}
+        schema={activeTab === 'pos' ? poSchema : supplierSchema}
+        templateData={activeTab === 'pos' ? [
+          {
+            'PO Number': 'PO-2025-003',
+            'Supplier': 'Tabuk Fisheries',
+            'Product': 'Sea Bream',
+            'Qty': 12000,
+            'Unit': 'KG',
+            'Unit Price': 23.35,
+            'Status': 'Pending'
+          }
+        ] : [
+          {
+            'Supplier Name': 'New Supplier Ltd',
+            'Country': 'Norway',
+            'Products': 'Salmon, Cod',
+            'Status': 'Active'
+          }
+        ]}
+      />
+
+      {activeTab === 'pos' && (
+        <DocumentUploadModal
+          isOpen={isPreFillModalOpen}
+          onClose={() => setIsPreFillModalOpen(false)}
+          onSave={handleDocumentSave}
+          initialDocType="Auto-Detect"
+        />
+      )}
     </div>
   );
 }

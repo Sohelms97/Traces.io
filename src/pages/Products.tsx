@@ -1,113 +1,13 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Search, Filter, ArrowRight, ShieldCheck, X, Info, Award, History, CheckCircle2, RotateCcw } from "lucide-react";
+import { Search, Filter, ShieldCheck, X, Info, Award, History, CheckCircle2, RotateCcw } from "lucide-react";
 import { Link } from "react-router-dom";
-
-const categories = ["All", "Fish & Seafood", "Vegetables", "Other Products"];
-
-const products = [
-  { 
-    id: "F001", 
-    name: "Sea Bream", 
-    category: "Fish & Seafood", 
-    origin: "Greece", 
-    supplier: "Aegean Fisheries", 
-    status: "Fully Traced", 
-    image: "https://images.unsplash.com/photo-1534604973900-c41ab4c5e036?auto=format&fit=crop&q=80&w=600",
-    nutritionalFacts: "Per 100g: Calories 96, Protein 20g, Fat 1.7g, Omega-3 0.4g",
-    certifications: ["ASC Certified", "GlobalG.A.P.", "ISO 22000"],
-    supplierHistory: "Aegean Fisheries has been a leader in sustainable aquaculture since 1985, operating in the pristine waters of the Aegean Sea."
-  },
-  { 
-    id: "F002", 
-    name: "Pangasius Fillet", 
-    category: "Fish & Seafood", 
-    origin: "Vietnam", 
-    supplier: "Mekong Delta Co.", 
-    status: "Fully Traced", 
-    image: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&q=80&w=600",
-    nutritionalFacts: "Per 100g: Calories 92, Protein 15g, Fat 3.5g, Sodium 65mg",
-    certifications: ["BAP 4-Star", "HACCP", "BRCGS"],
-    supplierHistory: "Mekong Delta Co. partners with over 500 local farmers to bring high-quality, responsibly raised pangasius to global markets."
-  },
-  { 
-    id: "F003", 
-    name: "Squid Rings", 
-    category: "Fish & Seafood", 
-    origin: "Thailand", 
-    supplier: "Siam Seafood", 
-    status: "In Progress", 
-    image: "https://images.unsplash.com/photo-1599481238505-b8b0537a3f77?auto=format&fit=crop&q=80&w=600",
-    nutritionalFacts: "Per 100g: Calories 92, Protein 15.6g, Fat 1.4g, Cholesterol 233mg",
-    certifications: ["MSC Certified", "GMP", "HALAL"],
-    supplierHistory: "Siam Seafood specializes in wild-caught cephalopods, utilizing modern processing facilities in Samut Sakhon."
-  },
-  { 
-    id: "V001", 
-    name: "Organic Spinach", 
-    category: "Vegetables", 
-    origin: "India", 
-    supplier: "Green Valley Farms", 
-    status: "Fully Traced", 
-    image: "https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&q=80&w=600",
-    nutritionalFacts: "Per 100g: Calories 23, Protein 2.9g, Iron 2.7mg, Vitamin A 469µg",
-    certifications: ["USDA Organic", "India Organic", "Fair Trade"],
-    supplierHistory: "Green Valley Farms is a cooperative of 200 small-scale organic farmers in the foothills of the Himalayas."
-  },
-  { 
-    id: "V002", 
-    name: "Baby Carrots", 
-    category: "Vegetables", 
-    origin: "Australia", 
-    supplier: "OzFresh", 
-    status: "Fully Traced", 
-    image: "https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?auto=format&fit=crop&q=80&w=600",
-    nutritionalFacts: "Per 100g: Calories 41, Fiber 2.8g, Vitamin A 835µg, Potassium 320mg",
-    certifications: ["Freshcare", "HARPS", "ACO Organic"],
-    supplierHistory: "OzFresh utilizes advanced hydroponic and traditional farming methods across Western Australia to ensure year-round supply."
-  },
-  { 
-    id: "O001", 
-    name: "Extra Virgin Olive Oil", 
-    category: "Other Products", 
-    origin: "Spain", 
-    supplier: "Iberian Groves", 
-    status: "Fully Traced", 
-    image: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=600",
-    nutritionalFacts: "Per 15ml: Calories 120, Total Fat 14g, Saturated Fat 2g, Vitamin E 1.9mg",
-    certifications: ["PDO Estepa", "EU Organic", "Non-GMO Project Verified"],
-    supplierHistory: "Iberian Groves manages ancient olive orchards in Andalusia, producing cold-pressed oils using traditional stone mills."
-  },
-  { 
-    id: "F004", 
-    name: "Scampi Shrimp", 
-    category: "Fish & Seafood", 
-    origin: "Bangladesh", 
-    supplier: "Bengal Bay", 
-    status: "Pending", 
-    image: "https://images.unsplash.com/photo-1559737558-2f5a35f4523b?auto=format&fit=crop&q=80&w=600",
-    nutritionalFacts: "Per 100g: Calories 99, Protein 24g, Fat 0.3g, Selenium 38µg",
-    certifications: ["ASC Certified", "HACCP"],
-    supplierHistory: "Bengal Bay focuses on black tiger shrimp farming in the coastal regions of Khulna, emphasizing mangrove conservation."
-  },
-  { 
-    id: "F005", 
-    name: "Rohu Fish", 
-    category: "Fish & Seafood", 
-    origin: "Myanmar", 
-    supplier: "Irrawaddy Sourcing", 
-    status: "Fully Traced", 
-    image: "https://images.unsplash.com/photo-1524704654690-b56c05c78a00?auto=format&fit=crop&q=80&w=600",
-    nutritionalFacts: "Per 100g: Calories 97, Protein 17g, Fat 2.5g, Calcium 650mg",
-    certifications: ["GlobalG.A.P.", "ISO 9001"],
-    supplierHistory: "Irrawaddy Sourcing works with freshwater aquaculture farms along the Irrawaddy River, prioritizing local community development."
-  },
-];
-
-const origins = ["All", ...Array.from(new Set(products.map(p => p.origin))).sort()];
-const suppliers = ["All", ...Array.from(new Set(products.map(p => p.supplier))).sort()];
+import { db } from "../firebase";
+import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
 
 export default function Products() {
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
   const [activeOrigin, setActiveOrigin] = useState("All");
   const [activeSupplier, setActiveSupplier] = useState("All");
@@ -116,12 +16,40 @@ export default function Products() {
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const q = query(
+          collection(db, "products"),
+          where("showOnWebsite", "==", true),
+          orderBy("displayOrder", "asc")
+        );
+        const snapshot = await getDocs(q);
+        const productsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setProducts(productsData);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 300);
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const categories = ["All", ...Array.from(new Set(products.map(p => p.category))).sort()];
+  const origins = ["All", ...Array.from(new Set(products.map(p => p.originCountry))).sort()];
+  const suppliers = ["All", ...Array.from(new Set(products.map(p => p.supplierName))).sort()];
 
   const hasActiveFilters = activeCategory !== "All" || activeOrigin !== "All" || activeSupplier !== "All" || searchQuery !== "";
 
@@ -134,10 +62,21 @@ export default function Products() {
 
   const filteredProducts = products.filter(p => 
     (activeCategory === "All" || p.category === activeCategory) &&
-    (activeOrigin === "All" || p.origin === activeOrigin) &&
-    (activeSupplier === "All" || p.supplier === activeSupplier) &&
+    (activeOrigin === "All" || p.originCountry === activeOrigin) &&
+    (activeSupplier === "All" || p.supplierName === activeSupplier) &&
     ((p.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()) || (p.id || '').toLowerCase().includes((searchQuery || '').toLowerCase()))
   );
+
+  if (loading) {
+    return (
+      <div className="pt-20 min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-500 font-bold animate-pulse">Loading Products...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-20">
@@ -284,15 +223,15 @@ export default function Products() {
                 >
                   <div className="h-56 overflow-hidden relative">
                     <img 
-                      src={product.image} 
+                      src={product.mainImage} 
                       alt={product.name} 
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       referrerPolicy="no-referrer"
                     />
                     <div className="absolute top-4 right-4">
                       <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
-                        product.status === "Fully Traced" ? "bg-green-500 text-white" :
-                        product.status === "In Progress" ? "bg-amber-500 text-white" :
+                        product.status === "Available" ? "bg-green-500 text-white" :
+                        product.status === "Out of Stock" ? "bg-red-500 text-white" :
                         "bg-slate-400 text-white"
                       }`}>
                         {product.status}
@@ -306,11 +245,11 @@ export default function Products() {
                     <div className="space-y-2 mb-6">
                       <div className="flex justify-between text-sm">
                         <span className="text-slate-400 dark:text-slate-500">Origin:</span>
-                        <span className="text-slate-700 dark:text-slate-300 font-semibold">{product.origin}</span>
+                        <span className="text-slate-700 dark:text-slate-300 font-semibold">{product.originCountry}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-slate-400 dark:text-slate-500">Supplier:</span>
-                        <span className="text-slate-700 dark:text-slate-300 font-semibold">{product.supplier}</span>
+                        <span className="text-slate-700 dark:text-slate-300 font-semibold">{product.supplierName}</span>
                       </div>
                     </div>
 
@@ -365,15 +304,15 @@ export default function Products() {
 
               <div className="lg:w-1/2 h-64 lg:h-auto relative">
                 <img 
-                  src={selectedProduct.image} 
+                  src={selectedProduct.mainImage} 
                   alt={selectedProduct.name} 
                   className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute top-6 left-6">
                   <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg ${
-                    selectedProduct.status === "Fully Traced" ? "bg-green-500 text-white" :
-                    selectedProduct.status === "In Progress" ? "bg-amber-500 text-white" :
+                    selectedProduct.status === "Available" ? "bg-green-500 text-white" :
+                    selectedProduct.status === "Out of Stock" ? "bg-red-500 text-white" :
                     "bg-slate-400 text-white"
                   }`}>
                     {selectedProduct.status}
@@ -387,14 +326,14 @@ export default function Products() {
                 <div className="text-green-600 font-bold mb-8">{selectedProduct.category}</div>
 
                 <div className="space-y-8">
-                  {/* Nutritional Facts */}
+                  {/* Description */}
                   <div className="flex gap-4">
                     <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                       <Info size={20} />
                     </div>
                     <div>
-                      <h4 className="font-bold text-blue-950 dark:text-white mb-1">Nutritional Facts</h4>
-                      <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">{selectedProduct.nutritionalFacts}</p>
+                      <h4 className="font-bold text-blue-950 dark:text-white mb-1">Description</h4>
+                      <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">{selectedProduct.fullDescription || selectedProduct.shortDescription}</p>
                     </div>
                   </div>
 
@@ -416,18 +355,18 @@ export default function Products() {
                     </div>
                   </div>
 
-                  {/* Supplier History */}
+                  {/* Supplier Info */}
                   <div className="flex gap-4">
                     <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
                       <History size={20} />
                     </div>
                     <div>
-                      <h4 className="font-bold text-blue-950 dark:text-white mb-1">Supplier History</h4>
+                      <h4 className="font-bold text-blue-950 dark:text-white mb-1">Supplier Info</h4>
                       <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed italic">
-                        "{selectedProduct.supplierHistory}"
+                        Sourced from {selectedProduct.supplierName} in {selectedProduct.supplierCountry}.
                       </p>
                       <div className="mt-2 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                        Partner: {selectedProduct.supplier}
+                        Origin: {selectedProduct.originCountry} ({selectedProduct.sourceType})
                       </div>
                     </div>
                   </div>

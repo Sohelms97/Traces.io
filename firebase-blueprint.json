@@ -23,11 +23,11 @@
         "product": { "type": "string", "description": "Product name." },
         "origin": { "type": "string", "description": "Origin country." },
         "qty": { "type": "string", "description": "Quantity." },
-        "purchaseValue": { "type": "string", "description": "Purchase value in SAR." },
-        "totalCost": { "type": "string", "description": "Total cost in SAR." },
+        "purchaseValue": { "type": "string", "description": "Purchase value in AED." },
+        "totalCost": { "type": "string", "description": "Total cost in AED." },
         "saleQty": { "type": "string", "description": "Sold quantity." },
-        "totalSales": { "type": "string", "description": "Total sales in SAR." },
-        "gp": { "type": "string", "description": "Gross profit in SAR." },
+        "totalSales": { "type": "string", "description": "Total sales in AED." },
+        "gp": { "type": "string", "description": "Gross profit in AED." },
         "roi": { "type": "string", "description": "Return on investment percentage." },
         "status": { "type": "string", "enum": ["Open", "Closed"], "description": "Container status." },
         "month": { "type": "string", "description": "Month of transaction." },
@@ -41,7 +41,7 @@
       "type": "object",
       "properties": {
         "name": { "type": "string", "description": "Investor name." },
-        "amount": { "type": "string", "description": "Investment amount in SAR." },
+        "amount": { "type": "string", "description": "Investment amount in AED." },
         "date": { "type": "string", "description": "Investment date." },
         "product": { "type": "string", "description": "Linked product or container." },
         "roi": { "type": "string", "description": "Agreed ROI percentage." },
@@ -51,6 +51,90 @@
         "createdAt": { "type": "string", "format": "date-time", "description": "Record creation timestamp." }
       },
       "required": ["name", "amount", "status"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Enhanced Product catalog item with full traceability and media.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "arabicName": { "type": "string" },
+        "category": { "type": "string" },
+        "subCategory": { "type": "string" },
+        "sku": { "type": "string" },
+        "barcode": { "type": "string" },
+        "brand": { "type": "string" },
+        "status": { "type": "string" },
+        "availability": { "type": "string" },
+        "showOnWebsite": { "type": "boolean" },
+        "featured": { "type": "boolean" },
+        "displayOrder": { "type": "number" },
+        "shortDescription": { "type": "string" },
+        "fullDescription": { "type": "string" },
+        "features": { "type": "array", "items": { "type": "string" } },
+        "specifications": { "type": "array", "items": { "type": "object" } },
+        "certifications": { "type": "array", "items": { "type": "string" } },
+        "originCountry": { "type": "string" },
+        "originRegion": { "type": "string" },
+        "sourceType": { "type": "string" },
+        "harvestSeason": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "supplierName": { "type": "string" },
+        "supplierCountry": { "type": "string" },
+        "supplierContact": { "type": "string" },
+        "factoryName": { "type": "string" },
+        "factoryAddress": { "type": "string" },
+        "productionMethod": { "type": "string" },
+        "mainImage": { "type": "string" },
+        "gallery": { "type": "array", "items": { "type": "object" } },
+        "videoUrl": { "type": "string" },
+        "documents": { "type": "array", "items": { "type": "object" } },
+        "unitOfMeasurement": { "type": "string" },
+        "avgPurchasePrice": { "type": "number" },
+        "avgSellingPrice": { "type": "number" },
+        "moq": { "type": "string" },
+        "tradeCycle": { "type": "number" },
+        "seoTitle": { "type": "string" },
+        "seoDescription": { "type": "string" },
+        "seoSlug": { "type": "string" },
+        "seoKeywords": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "category"]
+    },
+    "TraceabilityStage": {
+      "title": "Traceability Stage",
+      "description": "A single stage in a product's journey.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "order": { "type": "number" },
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "status": { "type": "string" },
+        "date": { "type": "string" },
+        "completedBy": { "type": "string" },
+        "internalNotes": { "type": "string" },
+        "publicDescription": { "type": "string" },
+        "showPublicly": { "type": "boolean" },
+        "data": { "type": "object" },
+        "photos": { "type": "array", "items": { "type": "object" } },
+        "documents": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "CMSContent": {
+      "title": "CMS Content",
+      "description": "Generic CMS content document.",
+      "type": "object",
+      "properties": {
+        "section": { "type": "string" },
+        "data": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" }
+      }
     }
   },
   "firestore": {
@@ -62,9 +146,45 @@
       "schema": "Container",
       "description": "Container records."
     },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Enhanced product catalog."
+    },
+    "/products/{productId}/traceability/{stageId}": {
+      "schema": "TraceabilityStage",
+      "description": "Traceability timeline for a product."
+    },
+    "/cms/{sectionId}": {
+      "schema": "CMSContent",
+      "description": "Website content management."
+    },
+    "/settings/{settingId}": {
+      "schema": "Settings",
+      "description": "System settings."
+    },
     "/investors/{investorId}": {
       "schema": "Investor",
       "description": "Investor records."
+    },
+    "/investments/{investmentId}": {
+      "schema": "object",
+      "description": "Investment details."
+    },
+    "/agreements/{agreementId}": {
+      "schema": "object",
+      "description": "Investor agreements."
+    },
+    "/payment_schedules/{scheduleId}": {
+      "schema": "object",
+      "description": "Payment schedules."
+    },
+    "/distributions/{distributionId}": {
+      "schema": "object",
+      "description": "Fund allocations."
+    },
+    "/documents/{docId}": {
+      "schema": "object",
+      "description": "Uploaded documents."
     }
   }
 }

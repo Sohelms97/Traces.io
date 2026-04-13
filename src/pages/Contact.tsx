@@ -1,9 +1,23 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Mail, Phone, MapPin, Send, Globe, Facebook, Twitter, Linkedin, Instagram, CheckCircle2 } from "lucide-react";
+import { useCMS } from "../hooks/useCMS";
 
 export default function Contact() {
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const { cmsData, loading } = useCMS();
+
+  const siteSettings = cmsData.site || {
+    address: "123 Business Bay, Dubai, United Arab Emirates",
+    email: "info@farmersmarket.asia",
+    phone: "+971 4 123 4567",
+    socialLinks: {
+      facebook: "#",
+      twitter: "#",
+      linkedin: "#",
+      instagram: "#"
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +67,7 @@ export default function Contact() {
                     </div>
                     <div>
                       <h4 className="text-xl font-bold text-blue-950 dark:text-white mb-1">Our Office</h4>
-                      <p className="text-slate-500 dark:text-slate-400">123 Business Bay, Dubai,<br />United Arab Emirates</p>
+                      <p className="text-slate-500 dark:text-slate-400 whitespace-pre-line">{siteSettings.address}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-6">
@@ -62,7 +76,7 @@ export default function Contact() {
                     </div>
                     <div>
                       <h4 className="text-xl font-bold text-blue-950 dark:text-white mb-1">Email Us</h4>
-                      <p className="text-slate-500 dark:text-slate-400">info@farmersmarket.asia<br />support@farmersmarket.asia</p>
+                      <p className="text-slate-500 dark:text-slate-400">{siteSettings.email}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-6">
@@ -71,7 +85,7 @@ export default function Contact() {
                     </div>
                     <div>
                       <h4 className="text-xl font-bold text-blue-950 dark:text-white mb-1">Call Us</h4>
-                      <p className="text-slate-500 dark:text-slate-400">+971 4 123 4567<br />+971 50 987 6543</p>
+                      <p className="text-slate-500 dark:text-slate-400">{siteSettings.phone}</p>
                     </div>
                   </div>
                 </div>
@@ -81,14 +95,16 @@ export default function Contact() {
                 <h3 className="text-xl font-bold text-blue-950 dark:text-white mb-6">Follow Us</h3>
                 <div className="flex gap-4">
                   {[
-                    { icon: <Facebook size={20} />, label: "Facebook" },
-                    { icon: <Twitter size={20} />, label: "Twitter" },
-                    { icon: <Linkedin size={20} />, label: "Linkedin" },
-                    { icon: <Instagram size={20} />, label: "Instagram" }
+                    { icon: <Facebook size={20} />, label: "Facebook", href: siteSettings.socialLinks?.facebook },
+                    { icon: <Twitter size={20} />, label: "Twitter", href: siteSettings.socialLinks?.twitter },
+                    { icon: <Linkedin size={20} />, label: "Linkedin", href: siteSettings.socialLinks?.linkedin },
+                    { icon: <Instagram size={20} />, label: "Instagram", href: siteSettings.socialLinks?.instagram }
                   ].map((social, i) => (
                     <a 
                       key={i} 
-                      href="#" 
+                      href={social.href || "#"} 
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:bg-green-600 hover:text-white dark:hover:bg-green-600 dark:hover:text-white transition-all shadow-sm"
                     >
                       {social.icon}

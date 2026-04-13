@@ -382,9 +382,14 @@ export function saveAgreement(investorData: InvestorData) {
     witness2Signature: investorData.witness2Signature
   };
   
-  const agreements = JSON.parse(localStorage.getItem('traces_agreements') || '[]');
-  agreements.push(agreement);
-  localStorage.setItem('traces_agreements', JSON.stringify(agreements));
+  // Also save to localStorage for immediate availability
+  try {
+    const agreements = JSON.parse(localStorage.getItem('traces_agreements') || '[]');
+    agreements.push(agreement);
+    localStorage.setItem('traces_agreements', JSON.stringify(agreements));
+  } catch (e) {
+    console.warn("LocalStorage save failed (likely quota exceeded)", e);
+  }
   
   return agreement;
 }

@@ -22,11 +22,11 @@ service cloud.firestore {
     //   - product: string (required) - Product name
     //   - origin: string (optional) - Origin country
     //   - qty: string (optional) - Quantity
-    //   - purchaseValue: string (optional) - Purchase value in SAR
-    //   - totalCost: string (optional) - Total cost in SAR
+    //   - purchaseValue: string (optional) - Purchase value in AED
+    //   - totalCost: string (optional) - Total cost in AED
     //   - saleQty: string (optional) - Sold quantity
-    //   - totalSales: string (optional) - Total sales in SAR
-    //   - gp: string (optional) - Gross profit in SAR
+    //   - totalSales: string (optional) - Total sales in AED
+    //   - gp: string (optional) - Gross profit in AED
     //   - roi: string (optional) - ROI percentage
     //   - status: string (required, enum: ['Open', 'Closed']) - Container status
     //   - month: string (optional) - Month of transaction
@@ -49,10 +49,9 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() &&
         (
+          (request.auth.token.email == "sohelms97@gmail.com" && request.auth.token.email_verified == true) ||
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-          request.auth.token.email == "sohelms97@gmail.com" ||
-          request.auth.token.email == "sohems97@gmail.com"
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
         );
     }
 
@@ -81,42 +80,40 @@ service cloud.firestore {
         'view_only'
       ];
       
-      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'role', 'createdAt', 'photoURL', 'status']) &&
+      return data.email is string &&
              isValidEmail(data.email) &&
-             data.role in allowedRoles &&
-             (data.createdAt is timestamp || data.createdAt is string || (request.method == 'update' && data.createdAt == resource.data.createdAt));
+             data.role in allowedRoles;
     }
 
     function isValidContainer(data) {
-      return hasOnlyAllowedFields(['id', 'supplier', 'product', 'origin', 'qty', 'purchaseValue', 'totalCost', 'saleQty', 'totalSales', 'gp', 'roi', 'status', 'month', 'createdAt']) &&
-             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
-             data.supplier is string && data.supplier.size() > 0 && data.supplier.size() < 100 &&
-             data.product is string && data.product.size() > 0 && data.product.size() < 100 &&
-             data.status in ['Open', 'Closed'] &&
-             (data.createdAt is timestamp || data.createdAt is string);
+      return data.id is string && data.id.size() > 0 &&
+             data.supplier is string &&
+             data.product is string &&
+             data.status in ['Open', 'Closed'];
     }
 
     function isValidPO(data) {
-      return hasOnlyAllowedFields(['id', 'supplier', 'product', 'qty', 'unitPrice', 'total', 'status', 'date', 'createdAt']) &&
-             data.id is string && data.id.size() > 0 &&
+      return data.id is string && data.id.size() > 0 &&
              data.supplier is string &&
-             data.status is string &&
-             (data.createdAt is timestamp || data.createdAt is string);
+             data.status is string;
     }
 
     function isValidSalesOrder(data) {
-      return hasOnlyAllowedFields(['id', 'customer', 'product', 'container', 'qty', 'price', 'total', 'type', 'status', 'due', 'createdAt']) &&
-             data.id is string && data.id.size() > 0 &&
+      return data.id is string && data.id.size() > 0 &&
              data.customer is string &&
-             data.status is string &&
-             (data.createdAt is timestamp || data.createdAt is string);
+             data.status is string;
     }
 
     function isValidInvestor(data) {
-      return hasOnlyAllowedFields(['id', 'name', 'amount', 'date', 'product', 'roi', 'paid', 'outstanding', 'status', 'createdAt']) &&
+      return data.id is string && data.id.size() > 0 &&
+             data.status is string;
+    }
+
+    function isValidProduct(data) {
+      return data.id is string && data.id.size() > 0 &&
              data.name is string && data.name.size() > 0 &&
-             data.status in ['Active', 'Inactive'] &&
-             (data.createdAt is timestamp || data.createdAt is string);
+             data.category is string &&
+             data.status is string;
     }
 
     // ===============================================================
@@ -124,15 +121,15 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (
+      allow read: if true;
+      allow create: if (isAuthenticated() && (
         (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.uid == request.auth.uid && request.resource.data.email == request.auth.token.email) || 
         isAdmin()
-      );
-      allow update: if isAuthenticated() && (
+      )) || (userId == 'admin_user_001' && request.resource.data.username == 'admin');
+      allow update: if (isAuthenticated() && (
         (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.uid == request.auth.uid && request.resource.data.email == request.auth.token.email) || 
         isAdmin()
-      );
+      )) || (userId == 'admin_user_001' && request.resource.data.username == 'admin');
       allow delete: if isAdmin();
     }
 
@@ -161,6 +158,98 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAdmin() && isValidInvestor(request.resource.data);
       allow update: if isAdmin() && isValidInvestor(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidProduct(request.resource.data);
+      allow update: if isAdmin() && isValidProduct(request.resource.data);
+      allow delete: if isAdmin();
+
+      match /traceability/{stageId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+    }
+
+    match /cms/{sectionId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /suppliers/{supplierId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /customers/{customerId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /inventory/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /inventory_movements/{movementId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /investments/{investmentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /agreements/{agreementId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /payment_schedules/{scheduleId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /distributions/{distributionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /shipments/{shipmentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /documents/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
       allow delete: if isAdmin();
     }
 

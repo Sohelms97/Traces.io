@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
+import ConfirmationModal from '../components/ConfirmationModal';
+import ImportExcelModal from '../components/ImportExcelModal';
+import DocumentUploadModal from '../components/DocumentUploadModal';
+import * as XLSX from 'xlsx';
+import { Download } from 'lucide-react';
 import { 
   collection, 
   onSnapshot, 
@@ -12,7 +17,8 @@ import {
   serverTimestamp, 
   updateDoc, 
   deleteDoc,
-  limit
+  limit,
+  writeBatch
 } from 'firebase/firestore';
 
 export default function WarehouseInventory() {
@@ -20,8 +26,15 @@ export default function WarehouseInventory() {
   const [inventory, setInventory] = useState<any[]>([]);
   const [movements, setMovements] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<any>(null);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const { isAdmin } = useAuth();
+  const [tempDocuments, setTempDocuments] = useState<{ data: any, files: { file: File; base64: string }[] } | null>(null);
+  const [isPreFillModalOpen, setIsPreFillModalOpen] = useState(false);
 
   // Form State
   const [itemForm, setItemForm] = useState({
@@ -38,23 +51,81 @@ export default function WarehouseInventory() {
     status: 'In Stock'
   });
 
+  // Error Handling Spec for Firestore Operations
+  enum OperationType {
+    CREATE = 'create',
+    UPDATE = 'update',
+    DELETE = 'delete',
+    LIST = 'list',
+    GET = 'get',
+    WRITE = 'write',
+  }
+
+  interface FirestoreErrorInfo {
+    error: string;
+    operationType: OperationType;
+    path: string | null;
+    authInfo: {
+      userId: string | undefined;
+      email: string | null | undefined;
+      emailVerified: boolean | undefined;
+      isAnonymous: boolean | undefined;
+      tenantId: string | null | undefined;
+      providerInfo: {
+        providerId: string;
+        displayName: string | null;
+        email: string | null;
+        photoUrl: string | null;
+      }[];
+    }
+  }
+
+  const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
+    const errInfo: FirestoreErrorInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+        isAnonymous: auth.currentUser?.isAnonymous,
+        tenantId: auth.currentUser?.tenantId,
+        providerInfo: auth.currentUser?.providerData.map(provider => ({
+          providerId: provider.providerId,
+          displayName: provider.displayName,
+          email: provider.email,
+          photoUrl: provider.photoURL
+        })) || []
+      },
+      operationType,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    throw new Error(JSON.stringify(errInfo));
+  };
+
   useEffect(() => {
     const inventoryQuery = query(collection(db, 'inventory'), orderBy('createdAt', 'desc'));
     const unsubscribeInventory = onSnapshot(inventoryQuery, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       if (docs.length === 0) {
         const defaultInventory = [
-          { name: 'Sea Bream', category: 'Seafood', origin: 'Saudi Arabia', supplier: 'Tabuk Fisheries', container: 'TFC/EX026/25', qtyIn: 12000, qtySold: 12000, unit: 'KG', unitCost: 23.35, location: 'Cold Store A-12', status: 'Out of Stock', createdAt: serverTimestamp() },
-          { name: 'Keski', category: 'Seafood', origin: 'Vietnam', supplier: 'Hong Long Seafood', container: 'FBIU5326683', qtyIn: 3000, qtySold: 2850, unit: 'Box', unitCost: 33.33, location: 'Cold Store B-05', status: 'Low Stock', createdAt: serverTimestamp() },
-          { name: 'Rohu', category: 'Seafood', origin: 'Thailand', supplier: 'PAKTHAI IMPEX', container: 'SZLU9069865', qtyIn: 27000, qtySold: 0, unit: 'KG', unitCost: 5.55, location: 'Cold Store A-14', status: 'In Stock', createdAt: serverTimestamp() },
+          { name: 'Sea Bream', category: 'Seafood', origin: 'Saudi Arabia', supplier: 'Tabuk Fisheries', container: 'TFC/EX026/25', qtyIn: 12000, qtySold: 12000, qtyRem: 0, unit: 'KG', unitCost: 23.35, location: 'Cold Store A-12', status: 'Out of Stock', createdAt: serverTimestamp() },
+          { name: 'Keski', category: 'Seafood', origin: 'Vietnam', supplier: 'Hong Long Seafood', container: 'FBIU5326683', qtyIn: 3000, qtySold: 2850, qtyRem: 150, unit: 'Box', unitCost: 33.33, location: 'Cold Store B-05', status: 'Low Stock', createdAt: serverTimestamp() },
+          { name: 'Rohu', category: 'Seafood', origin: 'Thailand', supplier: 'PAKTHAI IMPEX', container: 'SZLU9069865', qtyIn: 27000, qtySold: 0, qtyRem: 27000, unit: 'KG', unitCost: 5.55, location: 'Cold Store A-14', status: 'In Stock', createdAt: serverTimestamp() },
         ];
         defaultInventory.forEach(async (item) => {
           const id = `${item.name}-${item.container}`.replace(/\//g, '-');
-          await setDoc(doc(db, 'inventory', id), item);
+          try {
+            await setDoc(doc(db, 'inventory', id), { ...item, id });
+          } catch (error) {
+            handleFirestoreError(error, OperationType.WRITE, `inventory/${id}`);
+          }
         });
       } else {
         setInventory(docs);
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'inventory');
     });
 
     const movementQuery = query(collection(db, 'inventory_movements'), orderBy('createdAt', 'desc'), limit(20));
@@ -66,11 +137,18 @@ export default function WarehouseInventory() {
           { date: 'Dec 05, 2025', product: 'Sea Bream', container: 'TFC/EX026/25', type: 'OUT', qty: '5,000 KG', ref: 'INV-101', by: 'Sales Admin', createdAt: serverTimestamp() },
         ];
         defaultMovements.forEach(async (mov) => {
-          await setDoc(doc(db, 'inventory_movements', `MOV-${Date.now()}-${Math.random()}`), mov);
+          const id = `MOV-${Date.now()}-${Math.random()}`;
+          try {
+            await setDoc(doc(db, 'inventory_movements', id), mov);
+          } catch (error) {
+            handleFirestoreError(error, OperationType.WRITE, `inventory_movements/${id}`);
+          }
         });
       } else {
         setMovements(docs);
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'inventory_movements');
     });
 
     return () => {
@@ -102,6 +180,25 @@ export default function WarehouseInventory() {
     setIsModalOpen(true);
   };
 
+  const handleDocumentSave = (data: any, files: { file: File; base64: string }[]) => {
+    const logistics = data.logistics || {};
+    const procurement = data.procurement || {};
+    
+    setItemForm(prev => ({
+      ...prev,
+      name: procurement.items?.[0]?.description || prev.name,
+      supplier: procurement.supplier_name || prev.supplier,
+      container: logistics.container_number || prev.container,
+      qtyIn: procurement.items?.[0]?.quantity || prev.qtyIn,
+      unit: procurement.items?.[0]?.unit || prev.unit,
+      unitCost: procurement.items?.[0]?.unit_price || prev.unitCost,
+      origin: logistics.origin_port || prev.origin,
+    }));
+
+    setTempDocuments({ data, files });
+    setIsPreFillModalOpen(false);
+  };
+
   const handleSaveItem = async () => {
     try {
       const qtyInNum = parseFloat(itemForm.qtyIn);
@@ -122,39 +219,179 @@ export default function WarehouseInventory() {
         createdAt: editingItem ? editingItem.createdAt : serverTimestamp()
       };
 
+      const id = `${itemForm.name}-${itemForm.container}`.replace(/\//g, '-');
       if (editingItem) {
-        await updateDoc(doc(db, 'inventory', editingItem.id), itemData);
+        try {
+          await updateDoc(doc(db, 'inventory', editingItem.id), itemData);
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, `inventory/${editingItem.id}`);
+        }
       } else {
-        const id = `${itemForm.name}-${itemForm.container}`.replace(/\//g, '-');
-        await setDoc(doc(db, 'inventory', id), itemData);
+        try {
+          await setDoc(doc(db, 'inventory', id), itemData);
+
+          // Save temporary documents if any
+          if (tempDocuments) {
+            const { data, files } = tempDocuments;
+            const { saveExtractedData } = await import('../lib/document-router');
+            
+            for (const f of files) {
+              await saveExtractedData({
+                fileName: f.file.name,
+                fileSize: f.file.size,
+                base64Data: f.base64,
+                documentType: data.document_type || 'Auto-Detect',
+                extractedData: data,
+                linkedRecordId: id
+              });
+            }
+            setTempDocuments(null);
+          }
+        } catch (error) {
+          handleFirestoreError(error, OperationType.CREATE, `inventory/${id}`);
+        }
       }
 
       // Log movement if stock changed significantly or new item
       if (!editingItem || editingItem.qtyIn !== qtyInNum) {
-        await setDoc(doc(db, 'inventory_movements', `MOV-${Date.now()}`), {
-          date: new Date().toLocaleDateString(),
-          product: itemForm.name,
-          container: itemForm.container,
-          type: 'IN',
-          qty: `${qtyInNum} ${itemForm.unit}`,
-          ref: editingItem ? 'ADJ-001' : 'GRN-NEW',
-          by: 'Admin',
-          createdAt: serverTimestamp()
-        });
+        const movId = `MOV-${Date.now()}`;
+        try {
+          await setDoc(doc(db, 'inventory_movements', movId), {
+            date: new Date().toLocaleDateString(),
+            product: itemForm.name,
+            container: itemForm.container,
+            type: 'IN',
+            qty: `${qtyInNum} ${itemForm.unit}`,
+            ref: editingItem ? 'ADJ-001' : 'GRN-NEW',
+            by: 'Admin',
+            createdAt: serverTimestamp()
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.CREATE, `inventory_movements/${movId}`);
+        }
       }
 
       setIsModalOpen(false);
     } catch (error) {
       console.error("Error saving inventory item:", error);
+      if (error instanceof Error && error.message.startsWith('{')) {
+        throw error;
+      }
     }
   };
 
-  const handleDeleteItem = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this item?')) return;
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const filteredData = React.useMemo(() => {
+    const data = activeTab === 'stock' ? inventory : movements;
+    let result = data.filter(item => {
+      const searchStr = searchTerm.toLowerCase();
+      if (activeTab === 'stock') {
+        return (item.name || '').toLowerCase().includes(searchStr) ||
+               (item.container || '').toLowerCase().includes(searchStr) ||
+               (item.supplier || '').toLowerCase().includes(searchStr);
+      } else {
+        return (item.product || '').toLowerCase().includes(searchStr) ||
+               (item.container || '').toLowerCase().includes(searchStr) ||
+               (item.ref || '').toLowerCase().includes(searchStr);
+      }
+    });
+
+    if (sortConfig !== null) {
+      result.sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+        
+        if (aValue === undefined || bValue === undefined) return 0;
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return result;
+  }, [activeTab, inventory, movements, searchTerm, sortConfig]);
+
+  const handleExportExcel = () => {
+    if (filteredData.length === 0) {
+      alert('No data to export');
+      return;
+    }
+
+    let exportData;
+    if (activeTab === 'stock') {
+      exportData = filteredData.map(item => ({
+        'Product Name': item.name,
+        'Category': item.category,
+        'Origin': item.origin,
+        'Supplier': item.supplier,
+        'Container': item.container,
+        'Qty In': item.qtyIn,
+        'Qty Sold': item.qtySold,
+        'Qty Rem': item.qtyRem,
+        'Unit': item.unit,
+        'Unit Cost': item.unitCost,
+        'Value': item.value,
+        'Location': item.location,
+        'Status': item.status
+      }));
+    } else {
+      exportData = filteredData.map(item => ({
+        'Date': item.date,
+        'Product': item.product,
+        'Container': item.container,
+        'Type': item.type,
+        'Quantity': item.qty,
+        'Reference': item.ref,
+        'By': item.by
+      }));
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, activeTab === 'stock' ? 'Inventory' : 'Movements');
+    XLSX.writeFile(workbook, `${activeTab === 'stock' ? 'Inventory' : 'Movements'}_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+  const handleDeleteItem = (item: any) => {
+    setItemToDelete(item);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
     try {
-      await deleteDoc(doc(db, 'inventory', id));
+      const item = itemToDelete;
+      await deleteDoc(doc(db, 'inventory', item.id));
+      
+      // SYNC: Log movement for deletion
+      const movId = `MOV-DEL-${Date.now()}`;
+      try {
+        await setDoc(doc(db, 'inventory_movements', movId), {
+          date: new Date().toLocaleDateString(),
+          product: item.name,
+          container: item.container,
+          type: 'OUT',
+          qty: `${item.qtyRem} ${item.unit}`,
+          ref: 'INV-DEL',
+          by: 'Admin',
+          createdAt: serverTimestamp()
+        });
+      } catch (e) {}
+
+      setItemToDelete(null);
     } catch (error) {
-      console.error("Error deleting inventory item:", error);
+      handleFirestoreError(error, OperationType.DELETE, `inventory/${itemToDelete.id}`);
     }
   };
 
@@ -168,7 +405,7 @@ export default function WarehouseInventory() {
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Stock Value</div>
-          <div className="text-2xl font-bold text-[#1F4E79]">SAR {inventory.reduce((acc, item) => acc + (parseFloat(item.value?.replace(/,/g, '') || '0')), 0).toLocaleString()}</div>
+          <div className="text-2xl font-bold text-[#1F4E79]">AED {inventory.reduce((acc, item) => acc + (parseFloat(item.value?.replace(/,/g, '') || '0')), 0).toLocaleString()}</div>
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Low Stock Alerts</div>
@@ -204,11 +441,25 @@ export default function WarehouseInventory() {
             type="text" 
             placeholder={`Search ${activeTab === 'stock' ? 'inventory' : 'movements'}...`} 
             className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-64 shadow-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <div className="flex items-center gap-3">
           {isAdmin && (
             <>
+              <button 
+                onClick={handleExportExcel}
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                <Download className="w-4 h-4 text-green-600" /> Export Excel
+              </button>
+              <button 
+                onClick={() => setIsImportModalOpen(true)}
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                <i className="fa-solid fa-file-import"></i> Import Excel
+              </button>
               <button className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
                 <i className="fa-solid fa-file-invoice"></i> Generate GRN
               </button>
@@ -230,26 +481,58 @@ export default function WarehouseInventory() {
             <table className="w-full text-left">
               <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider font-bold">
                 <tr>
-                  <th className="px-6 py-4">Product Name</th>
-                  <th className="px-6 py-4">Category</th>
-                  <th className="px-6 py-4">Container No.</th>
-                  <th className="px-6 py-4 text-right">Qty In</th>
-                  <th className="px-6 py-4 text-right">Qty Sold</th>
-                  <th className="px-6 py-4 text-right">Qty Remaining</th>
-                  <th className="px-6 py-4 text-right">Stock Value (SAR)</th>
-                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>
+                    <div className="flex items-center gap-1">
+                      Product Name {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('category')}>
+                    <div className="flex items-center gap-1">
+                      Category {sortConfig?.key === 'category' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('container')}>
+                    <div className="flex items-center gap-1">
+                      Container No. {sortConfig?.key === 'container' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('qtyIn')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Qty In {sortConfig?.key === 'qtyIn' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('qtySold')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Qty Sold {sortConfig?.key === 'qtySold' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('qtyRem')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Qty Remaining {sortConfig?.key === 'qtyRem' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('value')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Stock Value (AED) {sortConfig?.key === 'value' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('status')}>
+                    <div className="flex items-center gap-1">
+                      Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
                   <th className="px-6 py-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {inventory.map((item, i) => (
+                {filteredData.map((item, i) => (
                   <tr key={i} className="hover:bg-blue-50/40 transition-all duration-200 group relative">
                     <td className="px-6 py-4 font-bold text-slate-700">{item.name}</td>
                     <td className="px-6 py-4 text-slate-600">{item.category}</td>
                     <td className="px-6 py-4 text-blue-600 font-medium hover:underline cursor-pointer">{item.container}</td>
-                    <td className="px-6 py-4 text-right text-slate-500">{item.qtyIn} {item.unit}</td>
-                    <td className="px-6 py-4 text-right text-slate-500">{item.qtySold} {item.unit}</td>
-                    <td className="px-6 py-4 text-right font-bold text-slate-800">{item.qtyRem} {item.unit}</td>
+                    <td className="px-6 py-4 text-right text-slate-500">{item.qtyIn.toLocaleString()} {item.unit}</td>
+                    <td className="px-6 py-4 text-right text-slate-500">{item.qtySold.toLocaleString()} {item.unit}</td>
+                    <td className="px-6 py-4 text-right font-bold text-slate-800">{(item.qtyIn - item.qtySold).toLocaleString()} {item.unit}</td>
                     <td className="px-6 py-4 text-right font-bold text-[#1F4E79]">{item.value}</td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
@@ -271,7 +554,7 @@ export default function WarehouseInventory() {
                               <i className="fa-solid fa-pen-to-square"></i>
                             </button>
                             <button 
-                              onClick={() => handleDeleteItem(item.id)}
+                              onClick={() => handleDeleteItem(item)}
                               className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             >
                               <i className="fa-solid fa-trash-can"></i>
@@ -290,17 +573,45 @@ export default function WarehouseInventory() {
             <table className="w-full text-left">
               <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider font-bold">
                 <tr>
-                  <th className="px-6 py-4">Date</th>
-                  <th className="px-6 py-4">Product</th>
-                  <th className="px-6 py-4">Container</th>
-                  <th className="px-6 py-4">Type</th>
-                  <th className="px-6 py-4 text-right">Qty</th>
-                  <th className="px-6 py-4">Reference</th>
-                  <th className="px-6 py-4">Recorded By</th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('date')}>
+                    <div className="flex items-center gap-1">
+                      Date {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('product')}>
+                    <div className="flex items-center gap-1">
+                      Product {sortConfig?.key === 'product' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('container')}>
+                    <div className="flex items-center gap-1">
+                      Container {sortConfig?.key === 'container' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('type')}>
+                    <div className="flex items-center gap-1">
+                      Type {sortConfig?.key === 'type' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('qty')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Qty {sortConfig?.key === 'qty' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('ref')}>
+                    <div className="flex items-center gap-1">
+                      Reference {sortConfig?.key === 'ref' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('by')}>
+                    <div className="flex items-center gap-1">
+                      Recorded By {sortConfig?.key === 'by' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {movements.map((log, i) => (
+                {filteredData.map((log, i) => (
                   <tr key={i} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 text-slate-500">{log.date}</td>
                     <td className="px-6 py-4 font-bold text-slate-700">{log.product}</td>
@@ -350,6 +661,26 @@ export default function WarehouseInventory() {
                 </button>
               </div>
               <div className="p-8 space-y-4">
+                {!editingItem && (
+                  <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white">
+                        <i className="fa-solid fa-wand-magic-sparkles"></i>
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-blue-900">AI Pre-fill</p>
+                        <p className="text-[10px] text-blue-700">Upload Packing List or GRN to auto-complete this form</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setIsPreFillModalOpen(true)}
+                      className="px-4 py-2 bg-white text-blue-600 border border-blue-200 rounded-lg text-xs font-bold hover:bg-blue-50 transition-all shadow-sm"
+                    >
+                      {tempDocuments ? 'Change Document' : 'Upload Document'}
+                    </button>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Product Name</label>
@@ -439,7 +770,7 @@ export default function WarehouseInventory() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Unit Cost (SAR)</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Unit Cost (AED)</label>
                     <input 
                       type="number" 
                       className="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 outline-none text-slate-900"
@@ -462,6 +793,70 @@ export default function WarehouseInventory() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmationModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Confirm Deletion"
+        message={`Are you sure you want to delete ${itemToDelete?.name}? This action cannot be undone and will remove the item from inventory.`}
+        confirmText="Delete Item"
+      />
+
+      <ImportExcelModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={async (data) => {
+          const batch = writeBatch(db);
+          data.forEach((item) => {
+            const id = `${item.name}-${item.container}`.replace(/\//g, '-');
+            const docRef = doc(db, 'inventory', id);
+            const qtyInNum = parseFloat(item.qtyIn) || 0;
+            const qtySoldNum = parseFloat(item.qtySold) || 0;
+            const qtyRem = qtyInNum - qtySoldNum;
+            const unitCost = parseFloat(item.unitCost) || 0;
+            const value = (qtyRem * unitCost).toLocaleString();
+            const status = qtyRem <= 0 ? 'Out of Stock' : (qtyRem < 500 ? 'Low Stock' : 'In Stock');
+
+            batch.set(docRef, {
+              ...item,
+              id,
+              qtyIn: qtyInNum,
+              qtySold: qtySoldNum,
+              qtyRem,
+              unitCost,
+              value,
+              status,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            });
+          });
+          await batch.commit();
+        }}
+        schema={{
+          name: { label: 'Product Name', required: true },
+          category: { label: 'Category' },
+          origin: { label: 'Origin' },
+          supplier: { label: 'Supplier' },
+          container: { label: 'Container No.', required: true },
+          qtyIn: { label: 'Qty In', type: 'number' },
+          qtySold: { label: 'Qty Sold', type: 'number' },
+          unit: { label: 'Unit' },
+          unitCost: { label: 'Unit Cost (AED)', type: 'number' },
+          location: { label: 'Warehouse Location' }
+        }}
+        templateData={[
+          { 'Product Name': 'Fresh Salmon', 'Category': 'Seafood', 'Origin': 'Norway', 'Supplier': 'Ocean Fresh', 'Container No.': 'CONT-001', 'Qty In': 1000, 'Qty Sold': 200, 'Unit': 'KG', 'Unit Cost (AED)': 45, 'Warehouse Location': 'Cold Store 1' }
+        ]}
+        title="Import Inventory"
+      />
+
+      <DocumentUploadModal
+        isOpen={isPreFillModalOpen}
+        onClose={() => setIsPreFillModalOpen(false)}
+        onSave={handleDocumentSave}
+        initialDocType="Auto-Detect"
+      />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -13,6 +14,7 @@ import {
 } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '../contexts/AuthContext';
 import { GoogleGenAI } from "@google/genai";
 import { Loader2, Sparkles, TrendingUp, AlertTriangle, Lightbulb, RefreshCw } from 'lucide-react';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
@@ -31,6 +33,7 @@ ChartJS.register(
 );
 
 export default function ERPDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'insights'>('overview');
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [insights, setInsights] = useState<any[]>([]);
@@ -38,6 +41,15 @@ export default function ERPDashboard() {
   const [containers, setContainers] = useState<any[]>([]);
   const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isAdmin } = useAuth();
+
+  const parseCurrency = (val: any) => {
+    if (typeof val === 'number') return val;
+    if (!val || typeof val !== 'string') return 0;
+    const cleaned = val.replace(/[^0-9.-]/g, '');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+  };
 
   useEffect(() => {
     const qContainers = query(collection(db, 'containers'), orderBy('createdAt', 'desc'), limit(10));
@@ -61,18 +73,18 @@ export default function ERPDashboard() {
   const totalContainers = containers.length;
   const closedContainers = containers.filter(c => c.status === 'Closed').length;
   const openContainers = containers.filter(c => c.status === 'Open').length;
-  const totalSalesVal = sales.reduce((acc, s) => acc + (parseFloat(s.total) || 0), 0);
-  const totalPurchaseVal = containers.reduce((acc, c) => acc + (parseFloat(c.totalCost) || 0), 0);
-  const totalGP = containers.reduce((acc, c) => acc + (parseFloat(c.gp) || 0), 0);
-  const avgROI = totalContainers > 0 ? (containers.reduce((acc, c) => acc + (parseFloat(c.roi) || 0), 0) / totalContainers).toFixed(2) : '0';
+  const totalSalesVal = sales.reduce((acc, s) => acc + parseCurrency(s.total), 0);
+  const totalPurchaseVal = containers.reduce((acc, c) => acc + parseCurrency(c.totalCost), 0);
+  const totalGP = containers.reduce((acc, c) => acc + parseCurrency(c.gp), 0);
+  const avgROI = totalContainers > 0 ? (containers.reduce((acc, c) => acc + parseCurrency(c.roi), 0) / totalContainers).toFixed(2) : '0';
 
   const kpiData = [
     { label: 'Total Containers', value: totalContainers.toString(), sub: 'In System', icon: 'fa-box', color: 'blue' },
     { label: 'Containers Closed', value: closedContainers.toString(), sub: 'Verified', icon: 'fa-circle-check', color: 'green' },
     { label: 'Containers Open', value: openContainers.toString(), sub: 'In Progress', icon: 'fa-clock', color: 'yellow' },
-    { label: 'Total Purchase', value: `SAR ${(totalPurchaseVal / 1000).toFixed(1)}K`, sub: 'Total Cost', icon: 'fa-cart-shopping', color: 'indigo' },
-    { label: 'Total Sales', value: `SAR ${(totalSalesVal / 1000).toFixed(1)}K`, sub: 'Revenue', icon: 'fa-sack-dollar', color: 'emerald' },
-    { label: 'Gross Profit', value: `SAR ${(totalGP / 1000).toFixed(1)}K`, sub: 'Net Performance', icon: 'fa-chart-line', color: 'teal' },
+    { label: 'Total Purchase', value: `AED ${(totalPurchaseVal / 1000).toFixed(1)}K`, sub: 'Total Cost', icon: 'fa-cart-shopping', color: 'indigo' },
+    { label: 'Total Sales', value: `AED ${(totalSalesVal / 1000).toFixed(1)}K`, sub: 'Revenue', icon: 'fa-sack-dollar', color: 'emerald' },
+    { label: 'Gross Profit', value: `AED ${(totalGP / 1000).toFixed(1)}K`, sub: 'Net Performance', icon: 'fa-chart-line', color: 'teal' },
     { label: 'Overall ROI', value: `${avgROI}%`, sub: 'Average', icon: 'fa-percent', color: 'orange' },
     { label: 'Recent Orders', value: sales.length.toString(), sub: 'Last 10', icon: 'fa-receipt', color: 'red' },
   ];
@@ -92,9 +104,9 @@ export default function ERPDashboard() {
     containers.forEach(c => {
       const mIdx = last4Months.indexOf(c.month);
       if (mIdx !== -1) {
-        stats[mIdx].sales += (parseFloat(c.totalSales) || 0);
-        stats[mIdx].cost += (parseFloat(c.totalCost) || 0);
-        stats[mIdx].gp += (parseFloat(c.gp) || 0);
+        stats[mIdx].sales += parseCurrency(c.totalSales);
+        stats[mIdx].cost += parseCurrency(c.totalCost);
+        stats[mIdx].gp += parseCurrency(c.gp);
       }
     });
 
@@ -113,12 +125,12 @@ export default function ERPDashboard() {
     labels: monthlyData.labels,
     datasets: [
       {
-        label: 'Sales (SAR)',
+        label: 'Sales (AED)',
         data: monthlyData.sales,
         backgroundColor: '#10b981',
       },
       {
-        label: 'Purchase Cost (SAR)',
+        label: 'Purchase Cost (AED)',
         data: monthlyData.costs,
         backgroundColor: '#1f4e79',
       },
@@ -129,7 +141,7 @@ export default function ERPDashboard() {
     labels: monthlyData.labels,
     datasets: [
       {
-        label: 'Gross Profit (SAR)',
+        label: 'Gross Profit (AED)',
         data: monthlyData.gp,
         borderColor: '#10b981',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -159,13 +171,13 @@ export default function ERPDashboard() {
     labels: sales.map(s => s.product).filter((v, i, a) => a.indexOf(v) === i).slice(0, 5),
     datasets: [
       {
-        label: 'Revenue (SAR)',
+        label: 'Revenue (AED)',
         data: sales.reduce((acc: any[], s) => {
           const existing = acc.find(item => item.product === s.product);
           if (existing) {
-            existing.total += (parseFloat(s.total) || 0);
+            existing.total += parseCurrency(s.total);
           } else {
-            acc.push({ product: s.product, total: (parseFloat(s.total) || 0) });
+            acc.push({ product: s.product, total: parseCurrency(s.total) });
           }
           return acc;
         }, []).sort((a: any, b: any) => b.total - a.total).slice(0, 5).map((item: any) => item.total),
@@ -202,9 +214,9 @@ export default function ERPDashboard() {
             text: `You are a senior business analyst for Farmers Market Asia, a seafood trading company.
             Analyze the following ERP data and provide 4-5 actionable business insights.
             Data:
-            - Total Sales Revenue: SAR ${totalSalesVal.toFixed(2)}
-            - Total Purchase Cost: SAR ${totalPurchaseVal.toFixed(2)}
-            - Gross Profit: SAR ${totalGP.toFixed(2)}
+            - Total Sales Revenue: AED ${totalSalesVal.toFixed(2)}
+            - Total Purchase Cost: AED ${totalPurchaseVal.toFixed(2)}
+            - Gross Profit: AED ${totalGP.toFixed(2)}
             - Average ROI: ${avgROI}%
             - Total Containers: ${totalContainers}
             - Open Containers: ${openContainers}
@@ -282,21 +294,68 @@ export default function ERPDashboard() {
             className="space-y-6"
           >
             {/* Quick Actions */}
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <button className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors">
-                  <i className="fa-solid fa-plus"></i> New Container
-                </button>
-                <button className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors">
-                  <i className="fa-solid fa-cart-plus"></i> New Purchase Order
-                </button>
-                <button className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors">
-                  <i className="fa-solid fa-truck-fast"></i> New Shipment
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                {isAdmin && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button 
+                      onClick={() => navigate('/erp/containers', { state: { openNewModal: true } })}
+                      className="bg-[#1F4E79] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#163a5a] transition-colors shadow-lg shadow-blue-900/10"
+                    >
+                      <i className="fa-solid fa-plus"></i> New Container
+                    </button>
+                    <button 
+                      onClick={() => navigate('/erp/purchases', { state: { openNewModal: true } })}
+                      className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors"
+                    >
+                      <i className="fa-solid fa-cart-plus"></i> New Purchase Order
+                    </button>
+                    <button 
+                      onClick={() => navigate('/erp/shipments', { state: { openNewModal: true } })}
+                      className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors"
+                    >
+                      <i className="fa-solid fa-truck-fast"></i> New Shipment
+                    </button>
+                  </div>
+                )}
+                <button 
+                  onClick={() => navigate('/erp/reports')}
+                  className="text-[#1F4E79] font-bold text-sm flex items-center gap-2 hover:underline"
+                >
+                  <i className="fa-solid fa-file-export"></i> View Reports
                 </button>
               </div>
-              <button className="text-[#1F4E79] font-bold text-sm flex items-center gap-2 hover:underline">
-                <i className="fa-solid fa-file-export"></i> View Reports
-              </button>
+
+              {/* Quick Preview Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                    <i className="fa-solid fa-box-open"></i>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Latest Container</p>
+                    <p className="text-sm font-bold text-slate-700">{containers[0]?.id || 'None'}</p>
+                  </div>
+                </div>
+                <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                    <i className="fa-solid fa-file-invoice-dollar"></i>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Latest PO</p>
+                    <p className="text-sm font-bold text-slate-700">PO-{sales[0]?.id?.slice(-4) || '0000'}</p>
+                  </div>
+                </div>
+                <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                    <i className="fa-solid fa-truck-ramp-box"></i>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Active Shipments</p>
+                    <p className="text-sm font-bold text-slate-700">{containers.filter(c => c.status === 'In Transit').length} In Transit</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* KPI Grid */}
@@ -409,8 +468,8 @@ export default function ERPDashboard() {
                       <th className="px-6 py-4">Supplier</th>
                       <th className="px-6 py-4">Product</th>
                       <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4 text-right">Sales (SAR)</th>
-                      <th className="px-6 py-4 text-right">GP (SAR)</th>
+                      <th className="px-6 py-4 text-right">Sales (AED)</th>
+                      <th className="px-6 py-4 text-right">GP (AED)</th>
                       <th className="px-6 py-4 text-right">ROI</th>
                       <th className="px-6 py-4 text-center">Actions</th>
                     </tr>

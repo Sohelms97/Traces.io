@@ -192,7 +192,7 @@ const InvestorDetail: React.FC = () => {
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="flex flex-col items-center text-center space-y-4">
                   <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-3xl border-4 border-white shadow-lg">
-                    {investor.fullName.charAt(0)}
+                    {(investor.fullName || 'I').charAt(0)}
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-800 text-lg">{investor.fullName}</h3>
@@ -237,17 +237,35 @@ const InvestorDetail: React.FC = () => {
 
             <div className="lg:col-span-2 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                  <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Capital Invested</p>
-                  <h3 className="text-xl font-bold text-slate-800">{investment?.currency} {parseFloat(investment?.capitalAmount || 0).toLocaleString()}</h3>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Capital Invested</p>
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <i className="fa-solid fa-vault"></i>
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-slate-800">{investment?.currency} {parseFloat(investment?.capitalAmount || 0).toLocaleString()}</h3>
+                  <p className="text-[10px] text-slate-400 mt-1 font-medium">Principal Amount</p>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                  <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Total Returns Paid</p>
-                  <h3 className="text-xl font-bold text-emerald-600">{investment?.currency} {totalPaid.toLocaleString()}</h3>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Returns Paid</p>
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <i className="fa-solid fa-hand-holding-dollar"></i>
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-emerald-600">{investment?.currency} {totalPaid.toLocaleString()}</h3>
+                  <p className="text-[10px] text-slate-400 mt-1 font-medium">Distributed Profits</p>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                  <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">ROI Percentage</p>
-                  <h3 className="text-xl font-bold text-blue-600">{investment?.roiPercent}%</h3>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">ROI Percentage</p>
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <i className="fa-solid fa-chart-line"></i>
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-blue-600">{investment?.roiPercent}%</h3>
+                  <p className="text-[10px] text-slate-400 mt-1 font-medium">Expected Yield</p>
                 </div>
               </div>
 

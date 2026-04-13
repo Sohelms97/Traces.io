@@ -1,7 +1,25 @@
 import { Link } from "react-router-dom";
-import { Facebook, Twitter, Linkedin, Instagram, Mail, Phone, MapPin } from "lucide-react";
+import { Facebook, Twitter, Linkedin, Instagram, Mail, Phone, MapPin, Search } from "lucide-react";
+import { useCMS } from "../hooks/useCMS";
 
 export default function Footer() {
+  const { cmsData } = useCMS();
+
+  const siteSettings = cmsData.site || {
+    siteTitle: "TRACES.IO",
+    siteLogo: "",
+    tagline: "Traceability First",
+    address: "123 Business Bay, Dubai, United Arab Emirates",
+    email: "info@farmersmarket.asia",
+    phone: "+971 4 123 4567",
+    socialLinks: {
+      facebook: "#",
+      twitter: "#",
+      linkedin: "#",
+      instagram: "#"
+    }
+  };
+
   return (
     <footer className="bg-blue-950 text-white pt-20 pb-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -9,23 +27,30 @@ export default function Footer() {
           {/* Brand */}
           <div className="space-y-6">
             <div className="flex items-center space-x-2">
-              <span className="text-3xl font-bold tracking-tighter">TRACES</span>
-              <div className="w-2 h-2 rounded-full bg-green-500" />
+              {siteSettings.siteLogo ? (
+                <img src={siteSettings.siteLogo} alt="Logo" className="w-10 h-10 object-contain" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center text-white">
+                  <Search size={18} className="rotate-90" />
+                </div>
+              )}
+              <span className="text-3xl font-bold tracking-tighter">{siteSettings.siteTitle}</span>
+              {!siteSettings.siteLogo && <div className="w-2 h-2 rounded-full bg-green-500" />}
             </div>
             <p className="text-blue-200/70 leading-relaxed">
               Farmers Market Asia's leading traceability platform. From Source to Table — Every Step Traced. Building trust through transparency.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-green-600 transition-colors">
+              <a href={siteSettings.socialLinks?.facebook || "#"} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-green-600 transition-colors">
                 <Facebook size={18} />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-green-600 transition-colors">
+              <a href={siteSettings.socialLinks?.twitter || "#"} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-green-600 transition-colors">
                 <Twitter size={18} />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-green-600 transition-colors">
+              <a href={siteSettings.socialLinks?.linkedin || "#"} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-green-600 transition-colors">
                 <Linkedin size={18} />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-green-600 transition-colors">
+              <a href={siteSettings.socialLinks?.instagram || "#"} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-green-600 transition-colors">
                 <Instagram size={18} />
               </a>
             </div>
@@ -51,15 +76,15 @@ export default function Footer() {
             <ul className="space-y-4">
               <li className="flex items-start space-x-3">
                 <MapPin className="text-green-500 shrink-0" size={20} />
-                <span className="text-blue-200/70">123 Business Bay, Dubai, United Arab Emirates</span>
+                <span className="text-blue-200/70 whitespace-pre-line">{siteSettings.address}</span>
               </li>
               <li className="flex items-center space-x-3">
                 <Phone className="text-green-500 shrink-0" size={20} />
-                <span className="text-blue-200/70">+971 4 123 4567</span>
+                <span className="text-blue-200/70">{siteSettings.phone}</span>
               </li>
               <li className="flex items-center space-x-3">
                 <Mail className="text-green-500 shrink-0" size={20} />
-                <span className="text-blue-200/70">info@farmersmarket.asia</span>
+                <span className="text-blue-200/70">{siteSettings.email}</span>
               </li>
             </ul>
           </div>

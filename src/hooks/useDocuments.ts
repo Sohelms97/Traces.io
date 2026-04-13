@@ -19,6 +19,7 @@ export interface DocumentRecord {
   uploadDate: any;
   uploadedBy: string;
   base64Data: string;
+  fileUrl?: string;
   extractedData: any;
   linkedRecordId?: string;
   linkedModule?: string;
@@ -59,7 +60,6 @@ export function useDocuments() {
   };
 
   const deleteDocument = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this document?')) return;
     try {
       await deleteDoc(doc(db, 'documents', id));
     } catch (error) {

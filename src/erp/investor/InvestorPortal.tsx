@@ -19,6 +19,7 @@ import {
   Trash2,
   Share2
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { db } from '../../firebase';
 import { 
   collection, 
@@ -33,12 +34,18 @@ import {
 } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { downloadAgreement } from './utils/agreement-generator';
+import ConfirmationModal from '../../components/ConfirmationModal';
+import ImportExcelModal from '../../components/ImportExcelModal';
+import { serverTimestamp } from 'firebase/firestore';
 
 const InvestorPortal: React.FC = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [investorToDelete, setInvestorToDelete] = useState<any>(null);
   const [investors, setInvestors] = useState<any[]>([]);
   const [investments, setInvestments] = useState<any[]>([]);
   const [agreements, setAgreements] = useState<any[]>([]);
@@ -80,13 +87,13 @@ const InvestorPortal: React.FC = () => {
 
     return [
       { label: 'Total Investors', value: investors.length, icon: Users, color: 'blue' },
-      { label: 'Total Capital', value: `SAR ${totalCapital.toLocaleString()}`, icon: DollarSign, color: 'green' },
-      { label: 'Returns Paid', value: `SAR ${totalReturnsPaid.toLocaleString()}`, icon: CheckCircle, color: 'emerald' },
-      { label: 'Pending Returns', value: `SAR ${pendingReturns.toLocaleString()}`, icon: AlertCircle, color: 'red' },
+      { label: 'Total Capital', value: `AED ${totalCapital.toLocaleString()}`, icon: DollarSign, color: 'green' },
+      { label: 'Returns Paid', value: `AED ${totalReturnsPaid.toLocaleString()}`, icon: CheckCircle, color: 'emerald' },
+      { label: 'Pending Returns', value: `AED ${pendingReturns.toLocaleString()}`, icon: AlertCircle, color: 'red' },
       { label: 'Active Investments', value: activeInvestments, icon: TrendingUp, color: 'indigo' },
       { label: 'Closed Investments', value: closedInvestments, icon: Clock, color: 'slate' },
       { label: 'Average ROI', value: `${avgROI}%`, icon: FileText, color: 'amber' },
-      { label: 'Total Profit', value: `SAR ${totalProfit.toLocaleString()}`, icon: TrendingUp, color: 'cyan' },
+      { label: 'Total Profit', value: `AED ${totalProfit.toLocaleString()}`, icon: TrendingUp, color: 'cyan' },
     ];
   };
 
@@ -101,43 +108,79 @@ const InvestorPortal: React.FC = () => {
     return matchesSearch;
   });
 
-  const handleDeleteInvestor = async (investorId: string) => {
-    if (window.confirm('Are you sure you want to delete this investor? All related data (investments, agreements, schedules) will be permanently removed.')) {
-      try {
-        const batch = writeBatch(db);
+  const handleDeleteInvestor = (investor: any) => {
+    setInvestorToDelete(investor);
+    setIsDeleteModalOpen(true);
+  };
 
-        // 1. Find and delete investor document
-        const investorQuery = query(collection(db, 'investors'), where('id', '==', investorId));
-        const investorSnap = await getDocs(investorQuery);
-        investorSnap.forEach((d) => batch.delete(d.ref));
+  const confirmDeleteInvestor = async () => {
+    if (!investorToDelete) return;
+    try {
+      const batch = writeBatch(db);
 
-        // 2. Find and delete related investments
-        const investmentQuery = query(collection(db, 'investments'), where('investorId', '==', investorId));
-        const investmentSnap = await getDocs(investmentQuery);
-        investmentSnap.forEach((d) => batch.delete(d.ref));
+      // 1. Find and delete investor document
+      const investorQuery = query(collection(db, 'investors'), where('id', '==', investorToDelete.id));
+      const investorSnap = await getDocs(investorQuery);
+      investorSnap.forEach((d) => batch.delete(d.ref));
 
-        // 3. Find and delete related distributions
-        const distributionQuery = query(collection(db, 'distributions'), where('investorId', '==', investorId));
-        const distributionSnap = await getDocs(distributionQuery);
-        distributionSnap.forEach((d) => batch.delete(d.ref));
+      // 2. Find and delete related investments
+      const investmentQuery = query(collection(db, 'investments'), where('investorId', '==', investorToDelete.id));
+      const investmentSnap = await getDocs(investmentQuery);
+      investmentSnap.forEach((d) => batch.delete(d.ref));
 
-        // 4. Find and delete related agreements
-        const agreementQuery = query(collection(db, 'agreements'), where('investorId', '==', investorId));
-        const agreementSnap = await getDocs(agreementQuery);
-        agreementSnap.forEach((d) => batch.delete(d.ref));
+      // 3. Find and delete related distributions
+      const distributionQuery = query(collection(db, 'distributions'), where('investorId', '==', investorToDelete.id));
+      const distributionSnap = await getDocs(distributionQuery);
+      distributionSnap.forEach((d) => batch.delete(d.ref));
 
-        // 5. Find and delete related payment schedules
-        const scheduleQuery = query(collection(db, 'payment_schedules'), where('investorId', '==', investorId));
-        const scheduleSnap = await getDocs(scheduleQuery);
-        scheduleSnap.forEach((d) => batch.delete(d.ref));
+      // 4. Find and delete related agreements
+      const agreementQuery = query(collection(db, 'agreements'), where('investorId', '==', investorToDelete.id));
+      const agreementSnap = await getDocs(agreementQuery);
+      agreementSnap.forEach((d) => batch.delete(d.ref));
 
-        await batch.commit();
-        alert('Investor and all related data deleted successfully.');
-      } catch (error) {
-        console.error('Error deleting investor:', error);
-        alert('Failed to delete investor. Check console for details.');
-      }
+      // 5. Find and delete related payment schedules
+      const scheduleQuery = query(collection(db, 'payment_schedules'), where('investorId', '==', investorToDelete.id));
+      const scheduleSnap = await getDocs(scheduleQuery);
+      scheduleSnap.forEach((d) => batch.delete(d.ref));
+
+      await batch.commit();
+      setInvestorToDelete(null);
+    } catch (error) {
+      console.error('Error deleting investor:', error);
     }
+  };
+
+  const handleExportAll = () => {
+    if (investors.length === 0) {
+      alert('No data to export');
+      return;
+    }
+
+    const exportData = filteredInvestors.map(investor => {
+      const investment = investments.find(inv => inv.investorId === investor.id);
+      const returnsPaid = schedules
+        .filter(s => s.investorId === investor.id && s.status === 'paid')
+        .reduce((sum, s) => sum + (s.paidAmount || 0), 0);
+
+      return {
+        'Investor ID': investor.id,
+        'Full Name': investor.fullName,
+        'Nationality': investor.nationality,
+        'NID Number': investor.nidNumber,
+        'Email': investor.email,
+        'Phone': investor.phone,
+        'Capital Invested': investment ? `${investment.currency} ${investment.capitalAmount}` : '0',
+        'ROI %': investment ? `${investment.roiPercent}%` : '0%',
+        'Returns Paid': `AED ${returnsPaid}`,
+        'Status': investor.status,
+        'Created Date': investor.createdDate ? new Date(investor.createdDate).toLocaleDateString() : 'N/A'
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Investors');
+    XLSX.writeFile(workbook, `Investors_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   return (
@@ -149,7 +192,19 @@ const InvestorPortal: React.FC = () => {
           <p className="text-slate-500 text-sm">Manage agreements, investments, and distributions.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors">
+          {isAdmin && (
+            <button 
+              onClick={() => setIsImportModalOpen(true)}
+              className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors"
+            >
+              <Download className="w-4 h-4 rotate-180" />
+              Import Excel
+            </button>
+          )}
+          <button 
+            onClick={handleExportAll}
+            className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors"
+          >
             <Download className="w-4 h-4" />
             Export All
           </button>
@@ -266,7 +321,7 @@ const InvestorPortal: React.FC = () => {
                         {investment ? `${investment.roiPercent}%` : '-'}
                       </td>
                       <td className="px-6 py-4 text-emerald-600 font-bold">
-                        SAR {returnsPaid.toLocaleString()}
+                        AED {returnsPaid.toLocaleString()}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
@@ -310,7 +365,7 @@ const InvestorPortal: React.FC = () => {
                           )}
                           {isAdmin && (
                             <button 
-                              onClick={() => handleDeleteInvestor(investor.id)}
+                              onClick={() => handleDeleteInvestor(investor)}
                               className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                               title="Delete"
                             >
@@ -380,6 +435,47 @@ const InvestorPortal: React.FC = () => {
           )}
         </div>
       </div>
+
+      <ConfirmationModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDeleteInvestor}
+        title="Confirm Investor Deletion"
+        message={`Are you sure you want to delete ${investorToDelete?.fullName}? All related data (investments, agreements, schedules) will be permanently removed. This action cannot be undone.`}
+        confirmText="Delete Investor"
+      />
+
+      <ImportExcelModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={async (data) => {
+          const batch = writeBatch(db);
+          data.forEach((item) => {
+            const id = item.id || `INV-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+            const docRef = doc(db, 'investors', id);
+            batch.set(docRef, {
+              ...item,
+              id,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            });
+          });
+          await batch.commit();
+        }}
+        schema={{
+          id: { label: 'Investor ID', required: true },
+          fullName: { label: 'Full Name', required: true },
+          nationality: { label: 'Nationality' },
+          nidNumber: { label: 'NID Number' },
+          email: { label: 'Email' },
+          phone: { label: 'Phone' },
+          status: { label: 'Status' }
+        }}
+        templateData={[
+          { 'Investor ID': 'INV-001', 'Full Name': 'John Smith', 'Nationality': 'UAE', 'NID Number': '123456789', 'Email': 'john@example.com', 'Phone': '971501234567', 'Status': 'Active' }
+        ]}
+        title="Import Investors"
+      />
     </div>
   );
 };

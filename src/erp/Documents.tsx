@@ -2,15 +2,24 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useDocuments, DocumentRecord } from '../hooks/useDocuments';
 import { roleLabels } from '../lib/permissions';
+import ConfirmationModal from '../components/ConfirmationModal';
+import ImportExcelModal from '../components/ImportExcelModal';
+import DocumentUploadModal from '../components/DocumentUploadModal';
+import { doc, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { db } from '../firebase';
 
 export default function Documents() {
   const { documents, deleteDocument } = useDocuments();
   const [filterType, setFilterType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDoc, setSelectedDoc] = useState<DocumentRecord | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [docToDelete, setDocToDelete] = useState<string | null>(null);
 
   const filteredDocs = documents.filter(doc => {
-    const matchesType = filterType === 'all' || doc.docType === filterType;
+    const matchesType = filterType === 'all' || doc.docType.toLowerCase().replace(/\s+/g, '_') === filterType;
     const matchesSearch = (doc.fileName || '').toLowerCase().includes((searchQuery || '').toLowerCase());
     return matchesType && matchesSearch;
   });
@@ -20,6 +29,11 @@ export default function Documents() {
   };
 
   const handleDownload = (doc: DocumentRecord) => {
+    if (doc.fileUrl) {
+      window.open(doc.fileUrl, '_blank');
+      return;
+    }
+
     if (!doc.base64Data) {
       alert('No file data available for download.');
       return;
@@ -142,6 +156,18 @@ export default function Documents() {
           </div>
           
           <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setIsUploadModalOpen(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
+            >
+              <i className="fa-solid fa-cloud-arrow-up"></i> Upload Document
+            </button>
+            <button 
+              onClick={() => setIsImportModalOpen(true)}
+              className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm"
+            >
+              <i className="fa-solid fa-file-import"></i> Import Excel
+            </button>
             <button className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
               <i className="fa-solid fa-download"></i>
             </button>
@@ -213,7 +239,10 @@ export default function Documents() {
                         <i className="fa-solid fa-download"></i>
                       </button>
                       <button 
-                        onClick={() => deleteDocument(doc.id)}
+                        onClick={() => {
+                          setDocToDelete(doc.id);
+                          setIsDeleteModalOpen(true);
+                        }}
                         className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                         title="Delete"
                       >
@@ -284,18 +313,31 @@ export default function Documents() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* Extracted Data */}
                   <div className="space-y-6">
-                    <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <i className="fa-solid fa-database text-blue-600"></i> Extracted Information
-                    </h4>
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <i className="fa-solid fa-database text-blue-600"></i> Extracted Information
+                      </h4>
+                      <div className="flex gap-2">
+                        <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Export PDF">
+                          <i className="fa-solid fa-file-pdf"></i>
+                        </button>
+                        <button className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all" title="Export Excel">
+                          <i className="fa-solid fa-file-excel"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3">
                       {Object.entries(selectedDoc.extractedData || {}).map(([key, value]) => {
-                        if (key === 'confidence_notes') return null;
+                        if (key === 'confidence_notes' || key === 'confidence' || key === 'document_type') return null;
                         return (
-                          <div key={key} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                              {(key || '').replace(/_/g, ' ')}
+                          <div key={key} className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                {(key || '').replace(/_/g, ' ')}
+                              </div>
+                              <div className="w-1.5 h-1.5 rounded-full bg-green-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             </div>
-                            <div className="font-bold text-slate-700">
+                            <div className="font-bold text-slate-700 break-words">
                               {typeof value === 'object' ? JSON.stringify(value) : String(value || 'N/A')}
                             </div>
                           </div>
@@ -310,7 +352,21 @@ export default function Documents() {
                       <i className="fa-solid fa-image text-blue-600"></i> Visual Preview
                     </h4>
                     <div className="aspect-[3/4] bg-slate-100 rounded-[2rem] border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-400 overflow-hidden relative group">
-                      {selectedDoc.base64Data ? (
+                      {selectedDoc.fileUrl ? (
+                        selectedDoc.fileName.toLowerCase().endsWith('.pdf') ? (
+                          <iframe 
+                            src={selectedDoc.fileUrl} 
+                            className="w-full h-full border-none"
+                            title="PDF Preview"
+                          />
+                        ) : (
+                          <img 
+                            src={selectedDoc.fileUrl} 
+                            alt="Preview" 
+                            className="w-full h-full object-contain p-4"
+                          />
+                        )
+                      ) : selectedDoc.base64Data ? (
                         <img 
                           src={`data:image/png;base64,${selectedDoc.base64Data}`} 
                           alt="Preview" 
@@ -358,6 +414,58 @@ export default function Documents() {
           </div>
         )}
       </AnimatePresence>
+
+      <DocumentUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        initialDocType="Auto-Detect"
+      />
+
+      <ConfirmationModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={() => {
+          if (docToDelete) {
+            deleteDocument(docToDelete);
+            setIsDeleteModalOpen(false);
+          }
+        }}
+        title="Delete Document"
+        message="Are you sure you want to delete this document? This action cannot be undone."
+        confirmText="Delete Document"
+      />
+
+      <ImportExcelModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={async (data) => {
+          const batch = writeBatch(db);
+          data.forEach((item) => {
+            const id = `DOC-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+            const docRef = doc(db, 'documents', id);
+            batch.set(docRef, {
+              ...item,
+              id,
+              fileSize: parseFloat(item.fileSize) || 0,
+              uploadDate: item.uploadDate || new Date().toISOString(),
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            });
+          });
+          await batch.commit();
+        }}
+        schema={{
+          fileName: { label: 'Document Name', required: true },
+          docType: { label: 'Type', required: true },
+          fileSize: { label: 'Size (Bytes)', type: 'number' },
+          uploadedBy: { label: 'Uploaded By' },
+          uploadDate: { label: 'Date', type: 'date' }
+        }}
+        templateData={[
+          { 'Document Name': 'Invoice_123.pdf', 'Type': 'commercial_invoice', 'Size (Bytes)': 1024, 'Uploaded By': 'Admin', 'Date': '2024-01-01' }
+        ]}
+        title="Import Documents"
+      />
     </div>
   );
 }

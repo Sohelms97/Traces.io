@@ -33,6 +33,14 @@ const InvestmentDistribution: React.FC = () => {
   const [selectedContainer, setSelectedContainer] = useState('');
   const [allocationAmount, setAllocationAmount] = useState('');
 
+  const parseCurrency = (val: any) => {
+    if (typeof val === 'number') return val;
+    if (!val || typeof val !== 'string') return 0;
+    const cleaned = val.replace(/[^0-9.-]/g, '');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   useEffect(() => {
     const unsubInvestors = onSnapshot(collection(db, 'investors'), (snapshot) => {
       setInvestors(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.data().id || doc.id })));
@@ -58,8 +66,8 @@ const InvestmentDistribution: React.FC = () => {
     };
   }, []);
 
-  const totalCapital = investments.reduce((sum, i) => sum + (parseFloat(i.capitalAmount) || 0), 0);
-  const totalAllocated = distributions.reduce((sum, d) => sum + (parseFloat(d.allocatedAmount) || 0), 0);
+  const totalCapital = investments.reduce((sum, i) => sum + parseCurrency(i.capitalAmount), 0);
+  const totalAllocated = distributions.reduce((sum, d) => sum + parseCurrency(d.allocatedAmount), 0);
   const unallocated = totalCapital - totalAllocated;
 
   const chartData = {
@@ -123,17 +131,17 @@ const InvestmentDistribution: React.FC = () => {
         <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Total Capital</p>
-            <h3 className="text-2xl font-bold text-slate-800">SAR {totalCapital.toLocaleString()}</h3>
+            <h3 className="text-2xl font-bold text-slate-800">AED {totalCapital.toLocaleString()}</h3>
             <p className="text-[10px] text-slate-400 mt-2">Under management</p>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Allocated Funds</p>
-            <h3 className="text-2xl font-bold text-[#1F4E79]">SAR {totalAllocated.toLocaleString()}</h3>
+            <h3 className="text-2xl font-bold text-[#1F4E79]">AED {totalAllocated.toLocaleString()}</h3>
             <p className="text-[10px] text-emerald-600 font-bold mt-2">{((totalAllocated / totalCapital) * 100).toFixed(1)}% Allocated</p>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Unallocated Funds</p>
-            <h3 className="text-2xl font-bold text-amber-600">SAR {unallocated.toLocaleString()}</h3>
+            <h3 className="text-2xl font-bold text-amber-600">AED {unallocated.toLocaleString()}</h3>
             <p className="text-[10px] text-amber-500 font-bold mt-2">{((unallocated / totalCapital) * 100).toFixed(1)}% Remaining</p>
           </div>
         </div>
@@ -176,7 +184,7 @@ const InvestmentDistribution: React.FC = () => {
                 <td className="px-6 py-4 font-bold text-slate-700">{row.investorName}</td>
                 <td className="px-6 py-4 text-slate-500 font-mono text-xs">{row.containerId}</td>
                 <td className="px-6 py-4 text-slate-700">{row.product}</td>
-                <td className="px-6 py-4 text-right font-bold text-[#1F4E79]">SAR {row.allocatedAmount.toLocaleString()}</td>
+                <td className="px-6 py-4 text-right font-bold text-[#1F4E79]">AED {row.allocatedAmount.toLocaleString()}</td>
                 <td className="px-6 py-4 text-center">
                   <div className="flex flex-col items-center gap-1">
                     <span className="text-xs font-bold text-slate-600">{row.allocatedPercent}%</span>
@@ -266,7 +274,7 @@ const InvestmentDistribution: React.FC = () => {
                       className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none pl-12"
                       placeholder="0.00"
                     />
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">SAR</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">AED</span>
                   </div>
                 </div>
                 <button 

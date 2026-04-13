@@ -1,82 +1,17 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { motion } from "motion/react";
-import { Search, MapPin, ShieldCheck, Truck, Warehouse, CheckCircle2, Anchor, FileText, QrCode, Users } from "lucide-react";
-
-const steps = [
-  { 
-    id: 1, 
-    title: "Sourcing & Origin", 
-    status: "Completed", 
-    date: "2026-03-10", 
-    party: "Aegean Fisheries Ltd.", 
-    location: "Chios, Greece", 
-    icon: <Anchor size={24} />, 
-    description: "Product harvested and initial quality check performed at source.",
-    docs: ["Certificate of Origin", "Health Certificate", "Harvest Log"] 
-  },
-  { 
-    id: 2, 
-    title: "Quality Inspection", 
-    status: "Completed", 
-    date: "2026-03-12", 
-    party: "SGS Global Services", 
-    location: "Athens Port Terminal", 
-    icon: <ShieldCheck size={24} />, 
-    description: "Third-party inspection for compliance with international food safety standards.",
-    docs: ["Inspection Report", "Lab Analysis", "Compliance Cert"] 
-  },
-  { 
-    id: 3, 
-    title: "International Shipment", 
-    status: "In Progress", 
-    date: "2026-03-15", 
-    party: "Maersk Line Logistics", 
-    location: "Mediterranean Sea (In Transit)", 
-    icon: <Truck size={24} />, 
-    description: "Container loaded and shipped via refrigerated vessel 'Maersk Columbus'.",
-    docs: ["Bill of Lading", "Packing List", "Temperature Log"] 
-  },
-  { 
-    id: 4, 
-    title: "Customs Clearance", 
-    status: "Pending", 
-    date: "Expected 2026-03-28", 
-    party: "Dubai Customs Authority", 
-    location: "Jebel Ali Port, UAE", 
-    icon: <FileText size={24} />, 
-    description: "Import documentation review and customs duty processing.",
-    docs: [] 
-  },
-  { 
-    id: 5, 
-    title: "Local Warehousing", 
-    status: "Pending", 
-    date: "TBD", 
-    party: "Farmers Market Asia Hub", 
-    location: "Dubai Logistics City", 
-    icon: <Warehouse size={24} />, 
-    description: "Final quality check and storage in temperature-controlled facility.",
-    docs: [] 
-  },
-  { 
-    id: 6, 
-    title: "Final Delivery", 
-    status: "Pending", 
-    date: "TBD", 
-    party: "Premium Retail Partner", 
-    location: "Dubai, UAE", 
-    icon: <CheckCircle2 size={24} />, 
-    description: "Last-mile delivery to the customer or retail point.",
-    docs: [] 
-  },
-];
+import { Search, MapPin, ShieldCheck, Truck, Warehouse, CheckCircle2, Anchor, FileText, QrCode, Users, Loader2 } from "lucide-react";
+import { db } from "../firebase";
+import { doc, getDoc, collection, getDocs, query, orderBy } from "firebase/firestore";
 
 export default function Traceability() {
   const location = useLocation();
   const [searchId, setSearchId] = useState("");
   const [tracedProduct, setTracedProduct] = useState<any>(null);
+  const [timeline, setTimeline] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -87,30 +22,50 @@ export default function Traceability() {
     }
   }, [location]);
 
-  const handleTrace = (id: string) => {
+  const handleTrace = async (id: string) => {
     if (!id) return;
     
     setIsSearching(true);
+    setError(null);
     
-    // Simulate API delay
-    setTimeout(() => {
-      if (id.length > 2) {
-        setTracedProduct({
-          id,
-          name: id.startsWith("F") ? "Premium Sea Bream" : "Organic Baby Spinach",
-          category: id.startsWith("F") ? "Seafood" : "Vegetables",
-          origin: id.startsWith("F") ? "Greece" : "Netherlands",
-          container: "MSKU-928374-1",
-          vessel: "Maersk Columbus",
-          batch: "B-2026-03-10-A",
-          harvestDate: "March 10, 2026",
-          tempRange: "-2°C to 2°C"
-        });
+    try {
+      const productDoc = await getDoc(doc(db, "products", id));
+      if (productDoc.exists()) {
+        setTracedProduct({ id: productDoc.id, ...productDoc.data() });
+        
+        // Fetch timeline
+        const timelineQuery = query(
+          collection(db, "products", id, "traceability"),
+          orderBy("order", "asc")
+        );
+        const timelineSnapshot = await getDocs(timelineQuery);
+        const timelineData = timelineSnapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter((stage: any) => stage.showPublicly !== false);
+        
+        setTimeline(timelineData);
       } else {
         setTracedProduct(null);
+        setError("Product not found. Please check the ID.");
       }
+    } catch (err) {
+      console.error("Error tracing product:", err);
+      setError("An error occurred while fetching data.");
+    } finally {
       setIsSearching(false);
-    }, 800);
+    }
+  };
+
+  const getIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'Anchor': return <Anchor size={24} />;
+      case 'ShieldCheck': return <ShieldCheck size={24} />;
+      case 'Truck': return <Truck size={24} />;
+      case 'FileText': return <FileText size={24} />;
+      case 'Warehouse': return <Warehouse size={24} />;
+      case 'CheckCircle2': return <CheckCircle2 size={24} />;
+      default: return <MapPin size={24} />;
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -163,7 +118,7 @@ export default function Traceability() {
                 </div>
                 <input 
                   type="text" 
-                  placeholder="Enter Product ID or Container Number..." 
+                  placeholder="Enter Product ID (e.g. PRD-1234)..." 
                   value={searchId}
                   onChange={(e) => setSearchId(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleTrace(searchId)}
@@ -174,10 +129,19 @@ export default function Traceability() {
                   disabled={isSearching}
                   className="bg-green-600 hover:bg-green-700 text-white px-10 py-6 font-bold transition-all disabled:opacity-50 flex items-center gap-2"
                 >
-                  {isSearching ? "Searching..." : "Trace Now"}
+                  {isSearching ? <Loader2 className="animate-spin" /> : "Trace Now"}
                 </button>
               </div>
             </div>
+            {error && (
+              <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-4 text-red-400 font-bold"
+              >
+                {error}
+              </motion.p>
+            )}
             <p className="mt-6 text-blue-200/60 text-sm">
               Try searching for: <button className="text-green-400 hover:underline" onClick={() => {setSearchId("F001"); handleTrace("F001")}}>F001 (Seafood)</button> or <button className="text-green-400 hover:underline ml-2" onClick={() => {setSearchId("V002"); handleTrace("V002")}}>V002 (Vegetables)</button>
             </p>
@@ -213,22 +177,22 @@ export default function Traceability() {
                         <span className="text-sm font-bold text-blue-950 dark:text-white">{tracedProduct.id}</span>
                       </div>
                       <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block mb-1">Batch #</span>
-                        <span className="text-sm font-bold text-blue-950 dark:text-white">{tracedProduct.batch}</span>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block mb-1">SKU</span>
+                        <span className="text-sm font-bold text-blue-950 dark:text-white">{tracedProduct.sku || 'N/A'}</span>
                       </div>
                     </div>
 
                     <div className="space-y-4">
                       {[
-                        { label: "Origin", value: tracedProduct.origin },
-                        { label: "Container #", value: tracedProduct.container },
-                        { label: "Vessel", value: tracedProduct.vessel },
-                        { label: "Harvest Date", value: tracedProduct.harvestDate },
-                        { label: "Temp Range", value: tracedProduct.tempRange },
+                        { label: "Origin", value: tracedProduct.originCountry },
+                        { label: "Region", value: tracedProduct.originRegion },
+                        { label: "Source", value: tracedProduct.sourceType },
+                        { label: "Supplier", value: tracedProduct.supplierName },
+                        { label: "Harvest Season", value: tracedProduct.harvestSeason },
                       ].map((item, idx) => (
                         <div key={idx} className="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-800 last:border-0">
                           <span className="text-sm text-slate-500 dark:text-slate-400">{item.label}</span>
-                          <span className="text-sm font-semibold text-blue-950 dark:text-white">{item.value}</span>
+                          <span className="text-sm font-semibold text-blue-950 dark:text-white">{item.value || 'N/A'}</span>
                         </div>
                       ))}
                     </div>
@@ -265,7 +229,7 @@ export default function Traceability() {
                   <div className="absolute left-7 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800 hidden md:block" />
 
                   <div className="space-y-12">
-                    {steps.map((step, i) => (
+                    {timeline.length > 0 ? timeline.map((step: any, i: number) => (
                       <motion.div 
                         key={step.id}
                         initial={{ opacity: 0, y: 30 }}
@@ -276,7 +240,7 @@ export default function Traceability() {
                       >
                         {/* Icon Node */}
                         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 z-10 shadow-lg transition-all duration-500 ${getStatusColor(step.status)}`}>
-                          {step.icon}
+                          {getIcon(step.icon)}
                         </div>
 
                         {/* Content Card */}
@@ -286,19 +250,19 @@ export default function Traceability() {
                               <div className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border mb-3 ${getStatusBadge(step.status)}`}>
                                 {step.status}
                               </div>
-                              <h3 className="text-2xl font-bold text-blue-950 dark:text-white">{step.title}</h3>
+                              <h3 className="text-2xl font-bold text-blue-950 dark:text-white">{step.name}</h3>
                             </div>
                             <div className="text-right sm:text-right">
                               <div className="text-lg font-bold text-blue-950 dark:text-white font-mono">{step.date}</div>
                               <div className="text-sm text-slate-400 dark:text-slate-500 flex items-center justify-end gap-1">
                                 <MapPin size={14} />
-                                {step.location}
+                                {step.location || 'N/A'}
                               </div>
                             </div>
                           </div>
 
                           <p className="text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
-                            {step.description}
+                            {step.publicDescription}
                           </p>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-50 dark:border-slate-800">
@@ -308,19 +272,25 @@ export default function Traceability() {
                                 <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-blue-950 dark:text-white">
                                   <Users size={16} />
                                 </div>
-                                <span className="text-sm font-bold text-blue-950 dark:text-white">{step.party}</span>
+                                <span className="text-sm font-bold text-blue-950 dark:text-white">{step.party || 'N/A'}</span>
                               </div>
                             </div>
                             
-                            {step.docs.length > 0 && (
+                            {step.documents && step.documents.length > 0 && (
                               <div>
                                 <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block mb-2">Verified Documents</span>
                                 <div className="flex flex-wrap gap-2">
-                                  {step.docs.map((doc, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-[10px] text-blue-900 dark:text-blue-400 font-bold border border-slate-100 dark:border-slate-700 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-700 dark:hover:text-green-400 hover:border-green-200 dark:hover:border-green-800 cursor-pointer transition-all">
+                                  {step.documents.map((doc: any, idx: number) => (
+                                    <a 
+                                      key={idx} 
+                                      href={doc.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-[10px] text-blue-900 dark:text-blue-400 font-bold border border-slate-100 dark:border-slate-700 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-700 dark:hover:text-green-400 hover:border-green-200 dark:hover:border-green-800 cursor-pointer transition-all"
+                                    >
                                       <FileText size={12} />
-                                      {doc}
-                                    </div>
+                                      {doc.name}
+                                    </a>
                                   ))}
                                 </div>
                               </div>
@@ -328,7 +298,11 @@ export default function Traceability() {
                           </div>
                         </div>
                       </motion.div>
-                    ))}
+                    )) : (
+                      <div className="p-12 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 text-center">
+                        <p className="text-slate-500 dark:text-slate-400">No public traceability stages available for this product.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

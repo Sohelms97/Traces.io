@@ -20,13 +20,25 @@ export function initSignaturePad(canvasId: string): SignatureData | null {
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
     const width = canvas.offsetWidth;
     const height = canvas.offsetHeight;
-    canvas.width = width * ratio;
-    canvas.height = height * ratio;
-    canvas.getContext("2d")?.scale(ratio, ratio);
-    pad.clear();
+    
+    // Only resize if dimensions actually changed and are non-zero
+    if (width > 0 && height > 0 && (canvas.width !== width * ratio || canvas.height !== height * ratio)) {
+      const data = pad.toData(); // Save existing signature
+      canvas.width = width * ratio;
+      canvas.height = height * ratio;
+      canvas.getContext("2d")?.scale(ratio, ratio);
+      pad.clear();
+      pad.fromData(data); // Restore signature
+    }
   };
 
-  window.addEventListener("resize", resizeCanvas);
+  // Use ResizeObserver for better reliability with responsive layouts and animations
+  const resizeObserver = new ResizeObserver(() => {
+    resizeCanvas();
+  });
+  resizeObserver.observe(canvas);
+
+  // Initial resize
   resizeCanvas();
 
   return { pad, canvas };

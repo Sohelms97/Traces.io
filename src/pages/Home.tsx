@@ -1,6 +1,8 @@
-import { motion } from "motion/react";
-import { ShieldCheck, Users, Cpu, ArrowRight, Anchor, Leaf, Box, Truck, Warehouse, CheckCircle2, TrendingUp, Globe, Database, LayoutDashboard } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { ShieldCheck, Users, Cpu, ArrowRight, Anchor, Leaf, Box, Truck, Warehouse, CheckCircle2, TrendingUp, Globe, Database, LayoutDashboard, Megaphone, X, Image as ImageIcon } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useCMS } from "../hooks/useCMS";
+import { useState, useEffect } from "react";
 
 const fadeInUp = {
   initial: { opacity: 0, y: 30 },
@@ -10,8 +12,65 @@ const fadeInUp = {
 };
 
 export default function Home() {
+  const { cmsData, loading } = useCMS();
+  const [showAnnouncement, setShowAnnouncement] = useState(true);
+
+  // SEO Handling
+  useEffect(() => {
+    if (cmsData.seo) {
+      document.title = cmsData.seo.title || "TRACES.IO | Global Food Traceability";
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) {
+        metaDesc.setAttribute("content", cmsData.seo.description || "");
+      }
+    }
+  }, [cmsData.seo]);
+  
+  const hero = cmsData.homepage || {
+    title: "Transparency You Can Trust",
+    subtitle: "Tracing every product from source to your table. Farmers Market Asia brings you the future of food traceability.",
+    image: "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=2000",
+    showStats: true
+  };
+
+  const stats = cmsData.stats || [
+    { id: '1', label: 'Containers Traded', value: '38+' },
+    { id: '2', label: 'Countries Sourced', value: '12+' },
+    { id: '3', label: 'Products Traced', value: '100%' },
+    { id: '4', label: 'Active Investors', value: '50+' }
+  ];
+
+  const partners = cmsData.partners || [];
+
   return (
-    <div className="w-full">
+    <div className="w-full relative">
+      {/* Announcement Bar */}
+      <AnimatePresence>
+        {showAnnouncement && (cmsData.announcements || []).filter((a: any) => a.active).length > 0 && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="bg-green-600 text-white py-2 px-4 relative z-[60] overflow-hidden"
+          >
+            <div className="max-w-7xl mx-auto flex items-center justify-center gap-4 text-sm font-bold">
+              <Megaphone size={16} className="shrink-0" />
+              <div className="flex gap-8 overflow-hidden">
+                {(cmsData.announcements || []).filter((a: any) => a.active).map((a: any, i: number) => (
+                  <span key={a.id || i} className="whitespace-nowrap">{a.text}</span>
+                ))}
+              </div>
+              <button 
+                onClick={() => setShowAnnouncement(false)}
+                className="absolute right-4 hover:bg-white/20 p-1 rounded-full transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Hero Section */}
       <section className="relative h-screen w-full flex items-center justify-center overflow-hidden">
         {/* Background Overlay */}
@@ -19,8 +78,8 @@ export default function Home() {
         
         {/* Background Image/Video Placeholder */}
         <img 
-          src="https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=2000" 
-          alt="Fresh Produce Ocean" 
+          src={hero.image} 
+          alt="Hero Background" 
           className="absolute inset-0 w-full h-full object-cover scale-105 animate-slow-zoom"
           referrerPolicy="no-referrer"
         />
@@ -31,11 +90,11 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight leading-tight">
-              Transparency You <br /> <span className="text-green-400">Can Trust</span>
+            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight leading-tight whitespace-pre-line">
+              {hero.title}
             </h1>
             <p className="text-xl md:text-2xl text-white/90 mb-10 max-w-3xl mx-auto font-light">
-              Tracing every product from source to your table. Farmers Market Asia brings you the future of food traceability.
+              {hero.subtitle}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link 
@@ -203,7 +262,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
             <div>
               <span className="text-green-600 font-bold tracking-widest uppercase text-sm mb-4 block">Our Catalog</span>
-              <h2 className="text-4xl font-bold text-blue-950 dark:text-white">Premium Products</h2>
+              <h2 className="text-4xl font-bold text-blue-950 dark:text-white">Featured Products</h2>
             </div>
             <Link to="/products" className="bg-blue-950 dark:bg-slate-800 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-900 dark:hover:bg-slate-700 transition-all">
               View All Products
@@ -211,51 +270,37 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { 
-                title: "Fish & Seafood", 
-                image: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&q=80&w=800",
-                items: ["Sea Bream", "Pangasius Fillet", "Squid", "Shrimp"]
-              },
-              { 
-                title: "Fresh Vegetables", 
-                image: "https://images.unsplash.com/photo-1566385101042-1a0aa0c1268c?auto=format&fit=crop&q=80&w=800",
-                items: ["Organic Greens", "Root Vegetables", "Exotic Produce"]
-              },
-              { 
-                title: "Global Commodities", 
-                image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=800",
-                items: ["Grains", "Oils", "Specialty Items"]
-              }
-            ].map((cat, i) => (
+            {(cmsData.products || []).slice(0, 3).map((product: any, i: number) => (
               <motion.div 
-                key={i}
+                key={product.id || i}
                 whileHover={{ y: -10 }}
                 className="bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-2xl transition-all border border-slate-100 dark:border-slate-800"
               >
                 <div className="h-64 overflow-hidden">
                   <img 
-                    src={cat.image} 
-                    alt={cat.title} 
+                    src={product.image || "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&q=80&w=800"} 
+                    alt={product.name} 
                     className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
                     referrerPolicy="no-referrer"
                   />
                 </div>
                 <div className="p-8">
-                  <h3 className="text-2xl font-bold text-blue-950 dark:text-white mb-4">{cat.title}</h3>
-                  <ul className="space-y-2 mb-8">
-                    {cat.items.map((item, idx) => (
-                      <li key={idx} className="text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
+                  <h3 className="text-2xl font-bold text-blue-950 dark:text-white mb-2">{product.name}</h3>
+                  <p className="text-green-600 font-bold text-sm mb-4">{product.category}</p>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mb-8 line-clamp-3">{product.description}</p>
                   <Link to="/products" className="w-full py-3 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-blue-950 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
-                    Explore Category <ArrowRight size={18} />
+                    Learn More <ArrowRight size={18} />
                   </Link>
                 </div>
               </motion.div>
+            ))}
+            {(!cmsData.products || cmsData.products.length === 0) && [1,2,3].map((_, i) => (
+              <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-100 dark:border-slate-800 animate-pulse">
+                <div className="h-48 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-6" />
+                <div className="h-6 bg-slate-100 dark:bg-slate-800 rounded w-3/4 mb-4" />
+                <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-full mb-2" />
+                <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-5/6" />
+              </div>
             ))}
           </div>
         </div>
@@ -278,22 +323,12 @@ export default function Home() {
                   We believe that financial transparency is as important as product traceability. Our investor portal provides unprecedented access to shipment performance, P&L visibility, and ROI tracking.
                 </p>
                 <div className="grid grid-cols-2 gap-8 mb-10">
-                  <div>
-                    <div className="text-4xl font-bold text-green-400 mb-2">38+</div>
-                    <div className="text-blue-200/50 text-sm uppercase tracking-wider">Containers Traded</div>
-                  </div>
-                  <div>
-                    <div className="text-4xl font-bold text-green-400 mb-2">12+</div>
-                    <div className="text-blue-200/50 text-sm uppercase tracking-wider">Countries Sourced</div>
-                  </div>
-                  <div>
-                    <div className="text-4xl font-bold text-green-400 mb-2">100%</div>
-                    <div className="text-blue-200/50 text-sm uppercase tracking-wider">Products Traced</div>
-                  </div>
-                  <div>
-                    <div className="text-4xl font-bold text-green-400 mb-2">50+</div>
-                    <div className="text-blue-200/50 text-sm uppercase tracking-wider">Active Investors</div>
-                  </div>
+                  {stats.slice(0, 4).map((stat: any) => (
+                    <div key={stat.id}>
+                      <div className="text-4xl font-bold text-green-400 mb-2">{stat.value}</div>
+                      <div className="text-blue-200/50 text-sm uppercase tracking-wider">{stat.label}</div>
+                    </div>
+                  ))}
                 </div>
                 <Link to="/investor" className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-full font-bold transition-all">
                   Access Investor Portal <TrendingUp size={20} />
@@ -315,21 +350,16 @@ export default function Home() {
                 </div>
                 
                 <div className="space-y-6">
-                  {[
-                    { label: "Total Sales", value: "SAR 10,395,310", color: "text-white" },
-                    { label: "Gross Profit", value: "SAR 271,224", color: "text-green-400" },
-                    { label: "Active Shipments", value: "14 Containers", color: "text-white" },
-                    { label: "Market Reach", value: "Asia & Middle East", color: "text-white" }
-                  ].map((stat, i) => (
-                    <div key={i} className="flex justify-between items-center border-b border-white/5 pb-4">
+                  {stats.slice(4, 8).map((stat: any) => (
+                    <div key={stat.id} className="flex justify-between items-center border-b border-white/5 pb-4">
                       <span className="text-blue-200/50">{stat.label}</span>
-                      <span className={`font-bold ${stat.color}`}>{stat.value}</span>
+                      <span className="font-bold text-white">{stat.value}</span>
                     </div>
                   ))}
                 </div>
                 
                 <div className="mt-8 p-4 bg-white/5 rounded-xl text-xs text-blue-200/40 leading-relaxed italic">
-                  "The level of transparency provided by TRACES has completely transformed how we evaluate our investment performance in the food sector."
+                  "{cmsData.testimonials?.[0]?.content || "The level of transparency provided by TRACES has completely transformed how we evaluate our investment performance."}"
                 </div>
               </div>
             </div>
@@ -342,11 +372,101 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <p className="text-slate-400 dark:text-slate-600 font-bold uppercase tracking-widest text-xs mb-10">Trusted by Global Partners</p>
           <div className="flex flex-wrap justify-center items-center gap-12 md:gap-24 opacity-50 grayscale dark:invert hover:grayscale-0 transition-all">
-            <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">TABUK FISHERIES</div>
-            <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">QUE KY CORP</div>
-            <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">ASIA AGRO</div>
-            <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">ME FOODS</div>
-            <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">GLOBAL LOGISTICS</div>
+            {partners.length > 0 ? partners.map((p: any) => (
+              <div key={p.id} className="flex flex-col items-center gap-2">
+                {p.logo ? (
+                  <img src={p.logo} alt={p.name} className="h-12 w-auto object-contain" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">{p.name}</div>
+                )}
+              </div>
+            )) : (
+              <>
+                <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">TABUK FISHERIES</div>
+                <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">QUE KY CORP</div>
+                <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">ASIA AGRO</div>
+                <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">ME FOODS</div>
+                <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">GLOBAL LOGISTICS</div>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Gallery Section */}
+      <section id="gallery" className="py-24 bg-slate-50 dark:bg-slate-950">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <span className="text-green-600 font-bold tracking-widest uppercase text-sm mb-4 block">Visual Journey</span>
+            <h2 className="text-4xl font-bold text-blue-950 dark:text-white mb-4">Our Operations Gallery</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-lg">A glimpse into our global sourcing and logistics operations.</p>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {(cmsData.gallery || []).map((item: any, i: number) => (
+              <motion.div 
+                key={item.id || i}
+                whileHover={{ scale: 1.02 }}
+                className={`relative rounded-2xl overflow-hidden bg-slate-200 dark:bg-slate-800 ${
+                  i === 0 ? 'md:col-span-2 md:row-span-2' : ''
+                }`}
+              >
+                <img 
+                  src={item.url} 
+                  alt={item.caption || "Gallery image"} 
+                  className="w-full h-full object-cover aspect-square md:aspect-auto"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 hover:opacity-100 transition-opacity p-6 flex items-end">
+                  <p className="text-white text-sm font-medium">{item.caption}</p>
+                </div>
+              </motion.div>
+            ))}
+            {(!cmsData.gallery || cmsData.gallery.length === 0) && (
+              <div className="col-span-full py-20 text-center text-slate-400 flex flex-col items-center gap-4">
+                <ImageIcon size={48} />
+                <p>No gallery images uploaded yet.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section id="faq" className="py-24 bg-white dark:bg-slate-950">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-blue-950 dark:text-white mb-4">Frequently Asked Questions</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-lg">Everything you need to know about our traceability platform.</p>
+          </div>
+          <div className="space-y-4">
+            {(cmsData.faqs || []).map((faq: any, i: number) => (
+              <motion.div 
+                key={faq.id || i}
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden"
+              >
+                <details className="group">
+                  <summary className="flex justify-between items-center p-6 cursor-pointer list-none bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
+                    <span className="text-lg font-bold text-blue-950 dark:text-white">{faq.question}</span>
+                    <span className="text-slate-400 group-open:rotate-180 transition-transform duration-300">
+                      <ArrowRight size={20} className="rotate-90" />
+                    </span>
+                  </summary>
+                  <div className="p-6 text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-800">
+                    {faq.answer}
+                  </div>
+                </details>
+              </motion.div>
+            ))}
+            {(!cmsData.faqs || cmsData.faqs.length === 0) && (
+              <div className="text-center py-10 text-slate-400 italic">
+                No FAQs available at the moment.
+              </div>
+            )}
           </div>
         </div>
       </section>

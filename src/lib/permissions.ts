@@ -12,7 +12,10 @@ export const rolePermissions: Record<UserRole, string[]> = {
     '/erp/reports', 
     '/erp/traceability', 
     '/erp/settings', 
-    '/erp/documents'
+    '/erp/documents',
+    '/erp/catalog',
+    '/erp/website',
+    '/erp/users'
   ],
   finance_manager: [
     '/erp/dashboard', 

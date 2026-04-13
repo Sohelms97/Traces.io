@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { rolePermissions, roleLabels } from '../lib/permissions';
 import DocumentUploadModal from '../components/DocumentUploadModal';
+import ExportDataModal from '../components/ExportDataModal';
 import { DocumentType } from '../lib/claude';
 import { useDocuments } from '../hooks/useDocuments';
 
@@ -17,6 +18,9 @@ const sidebarModules = [
   { name: 'Investor Portal', icon: 'fa-user', path: '/erp/investors' },
   { name: 'Financial Reports', icon: 'fa-chart-column', path: '/erp/reports' },
   { name: 'Traceability Tracker', icon: 'fa-link', path: '/erp/traceability' },
+  { name: 'Product Catalog', icon: 'fa-rectangle-list', path: '/erp/catalog' },
+  { name: 'Website Manager', icon: 'fa-globe', path: '/erp/website' },
+  { name: 'User Management', icon: 'fa-users-gear', path: '/erp/users' },
   { name: 'Documents', icon: 'fa-file-lines', path: '/erp/documents' },
   { name: 'Settings', icon: 'fa-gear', path: '/erp/settings' },
 ];
@@ -27,12 +31,20 @@ export default function ERPLayout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
-  const { user, logout, role } = useAuth();
+  const { user, logout, role, isAdmin } = useAuth();
   const location = useLocation();
   const { addDocument } = useDocuments();
   const { alerts, markAsRead } = useAlerts();
+
+  useEffect(() => {
+    document.title = "Internal ERP Portal | TRACES.IO";
+    return () => {
+      document.title = "TRACES.IO | Global Food Traceability";
+    };
+  }, []);
 
   const unreadAlerts = alerts.filter(a => !a.isRead);
 
@@ -112,13 +124,25 @@ export default function ERPLayout() {
           </div>
 
           <div className="flex items-center gap-6">
-            <button 
-              onClick={() => setIsUploadModalOpen(true)}
-              className="hidden md:flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium"
-            >
-              <i className="fa-solid fa-cloud-arrow-up"></i>
-              <span>Upload Document</span>
-            </button>
+            {isAdmin && (
+              <button 
+                onClick={() => setIsUploadModalOpen(true)}
+                className="hidden md:flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium"
+              >
+                <i className="fa-solid fa-cloud-arrow-up"></i>
+                <span>Upload Document</span>
+              </button>
+            )}
+
+            {isAdmin && (
+              <button 
+                onClick={() => setIsExportModalOpen(true)}
+                className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium shadow-lg shadow-blue-200"
+              >
+                <i className="fa-solid fa-download"></i>
+                <span>Export Data</span>
+              </button>
+            )}
 
             <div className="relative hidden md:block">
               <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
@@ -246,6 +270,12 @@ export default function ERPLayout() {
       <DocumentUploadModal 
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
+      />
+
+      {/* Export Data Modal */}
+      <ExportDataModal 
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
       />
 
       {/* Toasts */}

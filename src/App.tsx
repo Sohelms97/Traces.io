@@ -29,6 +29,9 @@ import FinancialReports from "./erp/FinancialReports";
 import TraceabilityTracker from "./erp/TraceabilityTracker";
 import Settings from "./erp/Settings";
 import Documents from "./erp/Documents";
+import ProductCatalog from "./erp/ProductCatalog";
+import UserManagement from "./erp/UserManagement";
+import WebsiteManager from "./erp/WebsiteManager";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import AccessDenied from "./pages/AccessDenied";
@@ -99,6 +102,9 @@ function AppContent() {
             <Route path="investors/distribution" element={<ProtectedRoute requiredPath="/erp/investors"><InvestmentDistribution /></ProtectedRoute>} />
             <Route path="reports" element={<ProtectedRoute requiredPath="/erp/reports"><FinancialReports /></ProtectedRoute>} />
             <Route path="traceability" element={<ProtectedRoute requiredPath="/erp/traceability"><TraceabilityTracker /></ProtectedRoute>} />
+            <Route path="catalog" element={<ProtectedRoute requiredPath="/erp/catalog"><ProductCatalog /></ProtectedRoute>} />
+            <Route path="website" element={<ProtectedRoute requiredPath="/erp/website"><WebsiteManager /></ProtectedRoute>} />
+            <Route path="users" element={<ProtectedRoute requiredPath="/erp/users"><UserManagement /></ProtectedRoute>} />
             <Route path="documents" element={<ProtectedRoute requiredPath="/erp/documents"><Documents /></ProtectedRoute>} />
             <Route path="settings" element={<ProtectedRoute requiredPath="/erp/settings"><Settings /></ProtectedRoute>} />
             <Route path="access-denied" element={<AccessDenied />} />

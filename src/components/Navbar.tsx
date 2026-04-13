@@ -4,6 +4,7 @@ import { Menu, X, Search, Sun, Moon, LayoutDashboard, LogIn } from "lucide-react
 import { motion, AnimatePresence } from "motion/react";
 import { useTheme } from "./ThemeProvider";
 import { useAuth } from "../contexts/AuthContext";
+import { useCMS } from "../hooks/useCMS";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,6 +12,13 @@ export default function Navbar() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const { cmsData } = useCMS();
+
+  const siteSettings = cmsData.site || {
+    siteTitle: "TRACES.IO",
+    siteLogo: "",
+    tagline: "Traceability First"
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -40,11 +48,22 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
-          <Link to="/" className="flex items-center space-x-2">
-            <span className={`text-2xl font-bold tracking-tighter ${scrolled || !isHomePage ? "text-blue-900 dark:text-white" : "text-white"}`}>
-              TRACES
-            </span>
-            <div className="w-2 h-2 rounded-full bg-green-500" />
+          <Link to="/" className="flex items-center space-x-2 group">
+            {siteSettings.siteLogo ? (
+              <img src={siteSettings.siteLogo} alt="Logo" className="w-10 h-10 object-contain" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-green-600/20 group-hover:scale-110 transition-transform">
+                <Search size={24} className="rotate-90" />
+              </div>
+            )}
+            <div className="flex flex-col">
+              <span className={`text-xl font-black tracking-tighter leading-none ${scrolled || !isHomePage ? "text-blue-900 dark:text-white" : "text-white"}`}>
+                {siteSettings.siteTitle}
+              </span>
+              <span className={`text-[10px] font-bold tracking-[0.2em] uppercase opacity-60 ${scrolled || !isHomePage ? "text-slate-500 dark:text-slate-400" : "text-white"}`}>
+                {siteSettings.tagline}
+              </span>
+            </div>
           </Link>
 
           {/* Desktop Nav */}

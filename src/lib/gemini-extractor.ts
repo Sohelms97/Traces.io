@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import * as XLSX from 'xlsx';
+import { ERP_INTELLIGENCE_PROMPT } from './erp-intelligence-prompt';
 
 /**
  * Repairs truncated JSON by attempting to close open braces and brackets.
@@ -57,9 +58,9 @@ async function generateWithRetry(ai: any, modelName: string, contents: any, conf
 }
 
 export async function extractWithGemini(
-  fileBase64: string,
-  mimeType: string,
-  documentType: string
+  files: { base64: string; mimeType: string; filename: string }[],
+  documentType: string,
+  customInstructions?: string
 ) {
   const apiKey = localStorage.getItem('traces_api_key') || process.env.GEMINI_API_KEY;
   const modelName = localStorage.getItem('traces_ai_model') || 'gemini-3-flash-preview';
@@ -70,24 +71,31 @@ export async function extractWithGemini(
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const prompt = buildExtractionPrompt(documentType);
+    
+    // Build contents with all files
+    const parts: any[] = files.map(file => ({
+      inlineData: {
+        mimeType: file.mimeType,
+        data: file.base64
+      }
+    }));
+
+    // Add text prompt
+    parts.push({
+      text: `ACTION: COMPILE
+Record Type: ${documentType === 'Auto-Detect' ? 'UNSPECIFIED' : documentType.toUpperCase()}
+Session Name: ${files.map(f => f.filename).join(', ')}
+
+Please process these ${files.length} document(s) and return the structured ERP record according to the system instructions.
+${customInstructions ? `\nAdditional Instructions: ${customInstructions}` : ''}`
+    });
 
     const response = await generateWithRetry(ai, modelName, [
       {
-        parts: [
-          {
-            inlineData: {
-              mimeType: mimeType,
-              data: fileBase64
-            }
-          },
-          {
-            text: `Please extract data from this ${documentType} document. Be concise and focus on the most important fields.`
-          }
-        ]
+        parts
       }
     ], {
-      systemInstruction: prompt,
+      systemInstruction: ERP_INTELLIGENCE_PROMPT,
       temperature: 0.1,
       maxOutputTokens: 8192,
       responseMimeType: "application/json"
@@ -190,18 +198,27 @@ export function buildExtractionPrompt(docType: string) {
       "invoice_date": null,
       "supplier_name": null,
       "supplier_address": null,
+      "supplier_tax_id": null,
       "buyer_name": null,
       "buyer_address": null,
+      "buyer_tax_id": null,
+      "purchase_order_number": null,
       "product_description": null,
       "quantity": null,
       "unit": null,
       "unit_price": null,
+      "subtotal": null,
+      "tax_amount": null,
+      "discount": null,
       "total_amount": null,
       "currency": null,
       "payment_terms": null,
+      "due_date": null,
       "origin_country": null,
       "hs_code": null,
       "bank_details": null,
+      "swift_code": null,
+      "iban": null,
       "confidence": {}
     }`,
 
@@ -210,7 +227,10 @@ export function buildExtractionPrompt(docType: string) {
     Return ONLY this exact JSON, no explanation:
     {
       "document_type": "Packing List",
+      "packing_list_number": null,
+      "date": null,
       "supplier_name": null,
+      "buyer_name": null,
       "product_name": null,
       "number_of_cartons": null,
       "quantity_per_carton": null,
@@ -220,9 +240,11 @@ export function buildExtractionPrompt(docType: string) {
       "net_weight_per_carton": null,
       "total_gross_weight": null,
       "total_net_weight": null,
+      "volume_cbm": null,
       "container_number": null,
       "seal_number": null,
       "origin": null,
+      "destination": null,
       "packing_details": null,
       "size_specifications": null,
       "confidence": {}
@@ -300,26 +322,35 @@ export function buildExtractionPrompt(docType: string) {
     }`,
 
     "Investment Contract": `
-    Extract key data from this Investment 
-    Contract or Agreement document.
+    You are an investment legal document expert.
+    Extract key data from this Investment Contract or Agreement.
     Return ONLY this exact JSON, no explanation:
     {
       "document_type": "Investment Contract",
       "contract_reference": null,
       "date_of_agreement": null,
+      "effective_date": null,
+      "expiry_date": null,
       "investor_name": null,
+      "investor_id_number": null,
       "investor_contact": null,
+      "investor_address": null,
       "company_name": null,
+      "company_representative": null,
       "investment_amount": null,
       "currency": null,
-      "payment_schedule": null,
+      "profit_share_percent": null,
       "expected_roi_percent": null,
-      "investment_duration": null,
+      "payment_schedule": null,
+      "payment_frequency": null,
+      "investment_duration_months": null,
       "product_details": null,
       "terms_summary": null,
+      "bank_account_for_returns": null,
       "signatory_investor": null,
       "signatory_company": null,
-      "witness": null,
+      "witness_1": null,
+      "witness_2": null,
       "confidence": {}
     }`,
 

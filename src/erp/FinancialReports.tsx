@@ -23,6 +23,14 @@ export default function FinancialReports() {
   const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const parseCurrency = (val: any) => {
+    if (typeof val === 'number') return val;
+    if (!val || typeof val !== 'string') return 0;
+    const cleaned = val.replace(/[^0-9.-]/g, '');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   useEffect(() => {
     const qContainers = query(collection(db, 'containers'), orderBy('createdAt', 'desc'));
     const qSales = query(collection(db, 'sales_orders'), orderBy('createdAt', 'desc'));
@@ -54,17 +62,17 @@ export default function FinancialReports() {
       const ai = new GoogleGenAI({ apiKey });
       
       // Prepare data summary for AI
-      const totalSales = sales.reduce((acc, s) => acc + parseFloat((s.total || '0').replace(/,/g, '')), 0);
-      const totalCost = containers.reduce((acc, c) => acc + parseFloat((c.totalCost || '0').replace(/,/g, '')), 0);
+      const totalSales = sales.reduce((acc, s) => acc + parseCurrency(s.total), 0);
+      const totalCost = containers.reduce((acc, c) => acc + parseCurrency(c.totalCost), 0);
       const avgROI = containers.length > 0 
-        ? containers.reduce((acc, c) => acc + parseFloat((c.roi || '0').replace('%', '')), 0) / containers.length 
+        ? containers.reduce((acc, c) => acc + parseCurrency(c.roi), 0) / containers.length 
         : 0;
       
       const prompt = `Analyze this ERP financial data for Farmers Market Asia and provide 3-5 strategic insights and actionable recommendations.
       
       Financial Summary:
-      - Total Sales Revenue: SAR ${totalSales.toLocaleString()}
-      - Total Purchase/Operating Cost: SAR ${totalCost.toLocaleString()}
+      - Total Sales Revenue: AED ${totalSales.toLocaleString()}
+      - Total Purchase/Operating Cost: AED ${totalCost.toLocaleString()}
       - Average Container ROI: ${avgROI.toFixed(2)}%
       - Total Containers: ${containers.length}
       - Total Sales Orders: ${sales.length}
@@ -96,8 +104,8 @@ export default function FinancialReports() {
       const month = c.month || 'Unknown';
       if (!summary[month]) summary[month] = { month, containers: 0, sales: 0, cost: 0 };
       summary[month].containers += 1;
-      summary[month].cost += parseFloat((c.totalCost || '0').replace(/,/g, ''));
-      summary[month].sales += parseFloat((c.totalSales || '0').replace(/,/g, ''));
+      summary[month].cost += parseCurrency(c.totalCost);
+      summary[month].sales += parseCurrency(c.totalSales);
     });
 
     return Object.values(summary).sort((a: any, b: any) => {
@@ -116,7 +124,7 @@ export default function FinancialReports() {
       const s = c.supplier || 'Unknown';
       if (!summary[s]) summary[s] = { name: s, count: 0, value: 0, products: new Set() };
       summary[s].count += 1;
-      summary[s].value += parseFloat((c.purchaseValue || '0').replace(/,/g, ''));
+      summary[s].value += parseCurrency(c.purchaseValue);
       summary[s].products.add(c.product);
     });
     return Object.values(summary).map((s: any) => ({
@@ -131,7 +139,7 @@ export default function FinancialReports() {
     sales.forEach(s => {
       const c = s.customer || 'Unknown';
       if (!summary[c]) summary[c] = { name: c, sales: 0, paid: 0, balance: 0 };
-      const total = parseFloat((s.total || '0').replace(/,/g, ''));
+      const total = parseCurrency(s.total);
       summary[c].sales += total;
       if (s.status === 'Paid') summary[c].paid += total;
       else summary[c].balance += total;
@@ -222,9 +230,9 @@ export default function FinancialReports() {
               <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider font-bold">
                 <tr>
                   <th className="px-6 py-4">Container No.</th>
-                  <th className="px-6 py-4 text-right">Purchase Cost (SAR)</th>
-                  <th className="px-6 py-4 text-right">Sales (SAR)</th>
-                  <th className="px-6 py-4 text-right">GP (SAR)</th>
+                  <th className="px-6 py-4 text-right">Purchase Cost (AED)</th>
+                  <th className="px-6 py-4 text-right">Sales (AED)</th>
+                  <th className="px-6 py-4 text-right">GP (AED)</th>
                   <th className="px-6 py-4 text-right">ROI</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4">Month</th>
@@ -260,9 +268,9 @@ export default function FinancialReports() {
                 <tr>
                   <th className="px-6 py-4">Month</th>
                   <th className="px-6 py-4 text-center">Total Containers</th>
-                  <th className="px-6 py-4 text-right">Total Sales (SAR)</th>
-                  <th className="px-6 py-4 text-right">Total Cost (SAR)</th>
-                  <th className="px-6 py-4 text-right">Gross Profit (SAR)</th>
+                  <th className="px-6 py-4 text-right">Total Sales (AED)</th>
+                  <th className="px-6 py-4 text-right">Total Cost (AED)</th>
+                  <th className="px-6 py-4 text-right">Gross Profit (AED)</th>
                   <th className="px-6 py-4 text-right">GP %</th>
                 </tr>
               </thead>
@@ -293,7 +301,7 @@ export default function FinancialReports() {
                 <tr>
                   <th className="px-6 py-4">Customer</th>
                   <th className="px-6 py-4">Invoice No.</th>
-                  <th className="px-6 py-4 text-right">Amount (SAR)</th>
+                  <th className="px-6 py-4 text-right">Amount (AED)</th>
                   <th className="px-6 py-4">Due Date</th>
                   <th className="px-6 py-4 text-center">Status</th>
                 </tr>
@@ -343,7 +351,7 @@ export default function FinancialReports() {
                 <tr>
                   <th className="px-6 py-4">Supplier</th>
                   <th className="px-6 py-4 text-center">No. of Containers</th>
-                  <th className="px-6 py-4 text-right">Total Purchase Value (SAR)</th>
+                  <th className="px-6 py-4 text-right">Total Purchase Value (AED)</th>
                   <th className="px-6 py-4">Main Products</th>
                 </tr>
               </thead>
@@ -367,9 +375,9 @@ export default function FinancialReports() {
               <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider font-bold">
                 <tr>
                   <th className="px-6 py-4">Customer</th>
-                  <th className="px-6 py-4 text-right">Total Sales (SAR)</th>
-                  <th className="px-6 py-4 text-right">Total Paid (SAR)</th>
-                  <th className="px-6 py-4 text-right">Outstanding (SAR)</th>
+                  <th className="px-6 py-4 text-right">Total Sales (AED)</th>
+                  <th className="px-6 py-4 text-right">Total Paid (AED)</th>
+                  <th className="px-6 py-4 text-right">Outstanding (AED)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">

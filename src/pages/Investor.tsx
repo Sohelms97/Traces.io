@@ -4,8 +4,8 @@ import { Link } from "react-router-dom";
 
 const stats = [
   { label: "Total Containers", value: "38", sub: "Nov 2025 – Feb 2026" },
-  { label: "Total Sales", value: "SAR 10,395,310", sub: "Verified Revenue" },
-  { label: "Gross Profit", value: "SAR 271,224", sub: "Net Performance" },
+  { label: "Total Sales", value: "AED 10,395,310", sub: "Verified Revenue" },
+  { label: "Gross Profit", value: "AED 271,224", sub: "Net Performance" },
   { label: "Active Investors", value: "52", sub: "Global Network" }
 ];
 
