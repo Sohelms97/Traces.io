@@ -33,6 +33,7 @@ export interface IProduct {
   seoDescription?: string;
   seoSlug: string;
   seoKeywords?: string[];
+  traceStatus?: 'not_started' | 'in_progress' | 'complete';
   createdBy?: string;
   createdAt: any;
   updatedAt: any;

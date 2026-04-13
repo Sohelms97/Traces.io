@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useAuth, UserRole } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
+import { UserRole } from '../types';
 import { roleLabels, roleDescriptions } from '../lib/permissions';
 import { collection, getDocs, doc, updateDoc, setDoc, query, orderBy, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { updateProfile, updatePassword } from 'firebase/auth';
 import { auth, db, storage } from '../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { uploadImage } from '../lib/upload';
 import { Camera, Upload, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ImportExcelModal from '../components/ImportExcelModal';
@@ -301,25 +302,6 @@ export default function Settings() {
       }
     } finally {
       setIsUpdatingPassword(false);
-    }
-  };
-
-  const uploadImage = async (file: File, path: string): Promise<string> => {
-    console.log(`Starting upload for ${file.name} to ${path}...`);
-    try {
-      if (file.size > 5 * 1024 * 1024) throw new Error("File size exceeds 5MB limit.");
-      if (!file.type.startsWith('image/')) throw new Error("Only image files are allowed.");
-
-      const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(snapshot.ref);
-      return url;
-    } catch (error: any) {
-      console.error("Upload error:", error);
-      if (error.code === 'storage/unauthorized') {
-        throw new Error("Permission denied. Ensure Firebase Storage is enabled and rules allow uploads.");
-      }
-      throw error;
     }
   };
 

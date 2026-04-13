@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useAuth, UserRole } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
+import { UserRole } from '../types';
 import { db, auth } from '../firebase';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { 
@@ -14,7 +15,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { Search, UserCog, Shield, Mail, Calendar, Trash2, CheckCircle2, XCircle } from 'lucide-react';
-import { roleLabels, roleDescriptions } from '../lib/permissions';
+import { roleLabels, roleDescriptions, rolePermissions } from '../lib/permissions';
 
 export default function UserManagement() {
   const [users, setUsers] = useState<any[]>([]);
@@ -23,6 +24,7 @@ export default function UserManagement() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [newRole, setNewRole] = useState<UserRole>('view_only');
+  const [customPermissions, setCustomPermissions] = useState<string[]>([]);
   const { isAdmin, user: currentUser } = useAuth();
 
   useEffect(() => {
@@ -38,7 +40,15 @@ export default function UserManagement() {
   const handleOpenRoleModal = (user: any) => {
     setSelectedUser(user);
     setNewRole(user.role || 'view_only');
+    setCustomPermissions(user.permissions || rolePermissions[user.role as UserRole] || []);
     setIsRoleModalOpen(true);
+    document.body.style.overflow = 'hidden';
+  };
+
+  const handleCloseRoleModal = () => {
+    setIsRoleModalOpen(false);
+    setSelectedUser(null);
+    document.body.style.overflow = 'unset';
   };
 
   const handleUpdateRole = async () => {
@@ -46,13 +56,24 @@ export default function UserManagement() {
     try {
       await updateDoc(doc(db, 'users', selectedUser.id), {
         role: newRole,
+        permissions: customPermissions,
         updatedAt: serverTimestamp()
       });
-      setIsRoleModalOpen(false);
-      setSelectedUser(null);
+      handleCloseRoleModal();
     } catch (error) {
       console.error("Error updating user role:", error);
     }
+  };
+
+  const togglePermission = (path: string) => {
+    setCustomPermissions(prev => 
+      prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]
+    );
+  };
+
+  const handleRoleChange = (role: UserRole) => {
+    setNewRole(role);
+    setCustomPermissions(rolePermissions[role] || []);
   };
 
   const handleDeleteUser = (user: any) => {
@@ -190,22 +211,22 @@ export default function UserManagement() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsRoleModalOpen(false)}
+              onClick={handleCloseRoleModal}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+              className="relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden"
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-[#1F4E79] text-white">
-                <h2 className="text-xl font-bold">Change User Role</h2>
-                <button onClick={() => setIsRoleModalOpen(false)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                <h2 className="text-xl font-bold">Manage User Role & Permissions</h2>
+                <button onClick={handleCloseRoleModal} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
                   <i className="fa-solid fa-xmark text-xl"></i>
                 </button>
               </div>
-              <div className="p-6 space-y-6">
+              <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
                 <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
                   <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold overflow-hidden">
                     {selectedUser?.photoURL ? (
@@ -220,34 +241,72 @@ export default function UserManagement() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select New Role</label>
-                  <div className="grid grid-cols-1 gap-2">
-                    {(Object.keys(roleLabels) as UserRole[]).map((roleKey) => (
-                      <button
-                        key={roleKey}
-                        onClick={() => setNewRole(roleKey)}
-                        className={`p-3 rounded-xl border-2 text-left transition-all ${
-                          newRole === roleKey 
-                            ? 'border-blue-600 bg-blue-50' 
-                            : 'border-slate-100 hover:border-slate-200 bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`font-bold ${newRole === roleKey ? 'text-blue-700' : 'text-slate-700'}`}>
-                            {roleLabels[roleKey]}
-                          </span>
-                          {newRole === roleKey && <CheckCircle2 size={16} className="text-blue-600" />}
-                        </div>
-                        <p className="text-[10px] text-slate-500 leading-tight">{roleDescriptions[roleKey]}</p>
-                      </button>
-                    ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select Role</label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {(Object.keys(roleLabels) as UserRole[]).map((roleKey) => (
+                        <button
+                          key={roleKey}
+                          onClick={() => handleRoleChange(roleKey)}
+                          className={`p-3 rounded-xl border-2 text-left transition-all ${
+                            newRole === roleKey 
+                              ? 'border-blue-600 bg-blue-50' 
+                              : 'border-slate-100 hover:border-slate-200 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`font-bold ${newRole === roleKey ? 'text-blue-700' : 'text-slate-700'}`}>
+                              {roleLabels[roleKey]}
+                            </span>
+                            {newRole === roleKey && <CheckCircle2 size={16} className="text-blue-600" />}
+                          </div>
+                          <p className="text-[10px] text-slate-500 leading-tight">{roleDescriptions[roleKey]}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Module Access (Custom)</label>
+                    <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                      <p className="text-[10px] text-blue-600 font-bold uppercase mb-3">Toggle individual permissions</p>
+                      <div className="space-y-2">
+                        {[
+                          { name: 'Dashboard', path: '/erp/dashboard' },
+                          { name: 'Containers', path: '/erp/containers' },
+                          { name: 'Purchases', path: '/erp/purchases' },
+                          { name: 'Shipments', path: '/erp/shipments' },
+                          { name: 'Inventory', path: '/erp/inventory' },
+                          { name: 'Sales', path: '/erp/sales' },
+                          { name: 'Investors', path: '/erp/investors' },
+                          { name: 'Reports', path: '/erp/reports' },
+                          { name: 'Traceability', path: '/erp/traceability' },
+                          { name: 'Catalog', path: '/erp/catalog' },
+                          { name: 'Website', path: '/erp/website' },
+                          { name: 'Users', path: '/erp/users' },
+                          { name: 'Documents', path: '/erp/documents' },
+                          { name: 'Settings', path: '/erp/settings' },
+                        ].map((module) => (
+                          <button 
+                            key={module.path} 
+                            onClick={() => togglePermission(module.path)}
+                            className="w-full flex items-center justify-between p-2 bg-white rounded-lg border border-slate-100 hover:border-blue-200 transition-all"
+                          >
+                            <span className="text-xs font-medium text-slate-700">{module.name}</span>
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${customPermissions.includes(module.path) ? 'bg-green-500 border-green-600' : 'bg-slate-100 border-slate-200'}`}>
+                              {customPermissions.includes(module.path) && <CheckCircle2 size={10} className="text-white" />}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-4">
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                   <button 
-                    onClick={() => setIsRoleModalOpen(false)}
+                    onClick={handleCloseRoleModal}
                     className="px-6 py-2 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors"
                   >
                     Cancel

@@ -1,4 +1,4 @@
-import { UserRole } from '../contexts/AuthContext';
+import { UserRole } from '../types';
 
 export const rolePermissions: Record<UserRole, string[]> = {
   admin: [

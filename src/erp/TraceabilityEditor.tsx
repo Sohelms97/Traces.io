@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, Reorder } from 'motion/react';
 import { db, storage } from '../firebase';
 import { collection, doc, onSnapshot, setDoc, deleteDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { uploadImage } from '../lib/upload';
 import { 
   History, Plus, GripVertical, Trash2, Edit2, CheckCircle2, 
   Clock, AlertCircle, MapPin, Search, Package, ArrowRight,
@@ -124,14 +124,10 @@ export default function TraceabilityEditor({ productId, productName }: { product
 
     setUploading(true);
     try {
-      const storageRef = ref(storage, `traceability/${productId}/${activeStage.id}/${Date.now()}_${file.name}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(snapshot.ref);
-      
+      const url = await uploadImage(file, `traceability/${productId}/${activeStage.id}`);
       const newDocs = [...(activeStage.documents || []), { name: file.name, url }];
       await handleUpdateStage(activeStage.id, { documents: newDocs });
     } catch (error: any) {
-      console.error("Error uploading file:", error);
       alert(`Error uploading file: ${error.message}`);
     } finally {
       setUploading(false);

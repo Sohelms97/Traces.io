@@ -12,20 +12,12 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-
-export type UserRole = 
-  | 'admin' 
-  | 'finance_manager' 
-  | 'sales_executive' 
-  | 'purchase_officer' 
-  | 'warehouse_staff' 
-  | 'investor_manager' 
-  | 'traceability_officer' 
-  | 'view_only';
+import { UserRole } from '../types';
 
 interface AuthContextType {
   user: User | null;
   role: UserRole | null;
+  permissions: string[];
   loading: boolean;
   login: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
@@ -33,13 +25,17 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   isAdmin: boolean;
+  hasPermission: (path: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+import { rolePermissions } from '../lib/permissions';
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,7 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const userDoc = await getDoc(userDocRef);
           
           if (userDoc.exists()) {
-            setRole(userDoc.data().role as UserRole);
+            const data = userDoc.data();
+            const userRole = data.role as UserRole;
+            setRole(userRole);
+            setPermissions(data.permissions || rolePermissions[userRole] || []);
           } else {
             // Check if a user was pre-created by email
             const emailDocRef = doc(db, 'users', user.email!);
@@ -60,35 +59,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (emailDoc.exists()) {
               const preData = emailDoc.data();
               const newRole = preData.role as UserRole;
+              const newPermissions = preData.permissions || rolePermissions[newRole] || [];
               
               await setDoc(userDocRef, {
                 uid: user.uid,
                 email: user.email,
                 displayName: user.displayName || preData.displayName || 'User',
                 role: newRole,
+                permissions: newPermissions,
                 photoURL: user.photoURL || preData.photoURL || null,
                 createdAt: serverTimestamp()
               });
               setRole(newRole);
-              // Optional: delete the email-based document to clean up
-              // await deleteDoc(emailDocRef);
+              setPermissions(newPermissions);
             } else {
               // Default role for new users
               const isAdmin = user.email === 'sohelms97@gmail.com' || user.email === 'sohems97@gmail.com'; 
               const newRole: UserRole = isAdmin ? 'admin' : 'view_only';
+              const newPermissions = rolePermissions[newRole] || [];
               
               await setDoc(userDocRef, {
                 uid: user.uid,
                 email: user.email,
                 displayName: user.displayName,
                 role: newRole,
+                permissions: newPermissions,
                 createdAt: serverTimestamp()
               });
               setRole(newRole);
+              setPermissions(newPermissions);
             }
           }
         } else {
           setRole(null);
+          setPermissions([]);
         }
       } catch (error) {
         console.error("Auth state change error:", error);
@@ -133,17 +137,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userDocRef = doc(db, 'users', user.uid);
       const isAdmin = email === 'sohelms97@gmail.com' || email === 'sohems97@gmail.com'; 
       const newRole: UserRole = isAdmin ? 'admin' : 'view_only';
+      const newPermissions = rolePermissions[newRole] || [];
       
       await setDoc(userDocRef, {
         uid: user.uid,
         email: email,
         displayName: name,
         role: newRole,
+        permissions: newPermissions,
         photoURL: null,
         status: 'Active',
         createdAt: serverTimestamp()
       });
       setRole(newRole);
+      setPermissions(newPermissions);
     } catch (error: any) {
       console.error("Registration error:", error.code, error.message);
       throw error;
@@ -158,16 +165,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(auth);
   };
 
+  const hasPermission = (path: string) => {
+    if (role === 'admin') return true;
+    return permissions.includes(path);
+  };
+
   const value = {
     user,
     role,
+    permissions,
     loading,
     login,
     loginWithEmail,
     registerWithEmail,
     resetPassword,
     logout,
-    isAdmin: role === 'admin'
+    isAdmin: role === 'admin',
+    hasPermission
   };
 
   return (

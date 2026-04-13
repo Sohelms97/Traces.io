@@ -3,37 +3,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { db, storage } from '../firebase';
 import { doc, getDoc, setDoc, serverTimestamp, collection, onSnapshot } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { uploadImage } from '../lib/upload';
 import { Globe, Home, Users, Package, Info, BarChart3, Handshake, MessageSquare, HelpCircle, Phone, Share2, Megaphone, Image as ImageIcon, Search, Settings as SettingsIcon, Save, ExternalLink, RefreshCw, Clock, User, Plus, Trash2, Edit, Check, X, ArrowUp, ArrowDown, Eye, EyeOff, Upload, Loader2, Camera, CheckCircle2, AlertCircle } from 'lucide-react';
 
-// Helper for uploading images to Firebase Storage
-const uploadImage = async (file: File, path: string): Promise<string> => {
-  console.log(`Starting upload for ${file.name} to ${path}...`);
-  try {
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      throw new Error("File size exceeds 5MB limit.");
-    }
-    
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      throw new Error("Only image files are allowed.");
-    }
-
-    const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(snapshot.ref);
-    console.log(`Upload successful: ${url}`);
-    return url;
-  } catch (error: any) {
-    console.error("Upload error details:", error);
-    if (error.code === 'storage/unauthorized') {
-      throw new Error("Permission denied. Please ensure Firebase Storage is enabled and rules allow uploads.");
-    }
-    throw error;
-  }
-};
-
+// CMS Tab Types
 type CMSTab = 'homepage' | 'team' | 'about' | 'stats' | 'partners' | 'testimonials' | 'faqs' | 'contact' | 'social' | 'announcements' | 'gallery' | 'media' | 'seo' | 'site';
 
 export default function WebsiteManager() {
@@ -146,12 +119,14 @@ export default function WebsiteManager() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => window.open('/', '_blank')}
+          <a 
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
             className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-slate-200 transition-all"
           >
             <ExternalLink className="w-4 h-4" /> Live Preview
-          </button>
+          </a>
           <button 
             onClick={handlePublishAll}
             disabled={saving}
@@ -364,12 +339,27 @@ function TeamManager({ data, onSave, saving }: any) {
     const file = e.target.files?.[0];
     if (file) {
       setUploading(true);
+      const formData = new FormData();
+      formData.append('photo', file);
+      
       try {
-        const url = await uploadImage(file, 'team');
-        setCurrentPhoto(url);
-      } catch (error) {
+        const response = await fetch('/api/team/photo', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: formData
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          setCurrentPhoto(result.data.photoUrl);
+        } else {
+          throw new Error(result.message);
+        }
+      } catch (error: any) {
         console.error("Error uploading photo:", error);
-        alert("Failed to upload photo.");
+        alert(`Failed to upload photo: ${error.message}`);
       } finally {
         setUploading(false);
       }
@@ -391,6 +381,14 @@ function TeamManager({ data, onSave, saving }: any) {
     setCurrentPhoto(null);
   };
 
+  const sortedMembers = [...members].sort((a, b) => {
+    const isALeader = a.department === 'Leadership';
+    const isBLeader = b.department === 'Leadership';
+    if (isALeader && !isBLeader) return -1;
+    if (!isALeader && isBLeader) return 1;
+    return (a.displayOrder || 0) - (b.displayOrder || 0);
+  });
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -407,7 +405,7 @@ function TeamManager({ data, onSave, saving }: any) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {members.map((member) => (
+        {sortedMembers.map((member) => (
           <div key={member.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex items-center gap-4 group">
             <div className="w-16 h-16 bg-white rounded-xl border border-slate-200 overflow-hidden flex-shrink-0">
               {member.image ? (
@@ -507,20 +505,55 @@ function TeamManager({ data, onSave, saving }: any) {
                   />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase">Department</label>
+                  <select 
+                    id="member-dept"
+                    defaultValue={editingMember?.department || 'Operations'}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option>Leadership</option>
+                    <option>Operations</option>
+                    <option>Technology</option>
+                    <option>Logistics</option>
+                    <option>Sales & Marketing</option>
+                    <option>Finance</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase">Display Order</label>
+                  <input 
+                    type="number" 
+                    defaultValue={editingMember?.displayOrder || 0}
+                    id="member-order"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase">LinkedIn</label>
+                  <input type="text" id="member-linkedin" defaultValue={editingMember?.linkedin} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none" placeholder="URL" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase">Twitter / X</label>
+                  <input type="text" id="member-twitter" defaultValue={editingMember?.twitter} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none" placeholder="URL" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase">Email</label>
+                  <input type="email" id="member-email" defaultValue={editingMember?.email} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none" placeholder="Email" />
+                </div>
+              </div>
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase">Department</label>
-                <select 
-                  id="member-dept"
-                  defaultValue={editingMember?.department || 'Operations'}
+                <label className="text-xs font-bold text-slate-500 uppercase">Expertise (comma separated)</label>
+                <input 
+                  type="text" 
+                  id="member-expertise"
+                  defaultValue={editingMember?.expertise?.join(', ')}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20"
-                >
-                  <option>Leadership</option>
-                  <option>Operations</option>
-                  <option>Technology</option>
-                  <option>Logistics</option>
-                  <option>Sales & Marketing</option>
-                  <option>Finance</option>
-                </select>
+                  placeholder="e.g. Logistics, Supply Chain, AI"
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">Bio</label>
@@ -543,8 +576,13 @@ function TeamManager({ data, onSave, saving }: any) {
                   const name = (document.getElementById('member-name') as HTMLInputElement).value;
                   const role = (document.getElementById('member-role') as HTMLInputElement).value;
                   const department = (document.getElementById('member-dept') as HTMLSelectElement).value;
+                  const displayOrder = parseInt((document.getElementById('member-order') as HTMLInputElement).value) || 0;
+                  const linkedin = (document.getElementById('member-linkedin') as HTMLInputElement).value;
+                  const twitter = (document.getElementById('member-twitter') as HTMLInputElement).value;
+                  const email = (document.getElementById('member-email') as HTMLInputElement).value;
+                  const expertise = (document.getElementById('member-expertise') as HTMLInputElement).value.split(',').map(s => s.trim()).filter(Boolean);
                   const bio = (document.getElementById('member-bio') as HTMLTextAreaElement).value;
-                  handleSaveMember({ ...editingMember, name, role, department, bio });
+                  handleSaveMember({ ...editingMember, name, role, department, displayOrder, linkedin, twitter, email, expertise, bio });
                 }}
                 className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all"
               >
@@ -1181,6 +1219,8 @@ function SocialManager({ data, onSave, saving }: any) {
                   <option>Instagram</option>
                   <option>YouTube</option>
                   <option>GitHub</option>
+                  <option>TikTok</option>
+                  <option>WhatsApp</option>
                 </select>
               </div>
               <div className="space-y-1">

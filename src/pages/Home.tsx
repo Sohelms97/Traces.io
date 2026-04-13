@@ -99,17 +99,17 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link 
                 to="/products" 
-                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-full font-bold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+                className="w-full sm:w-auto btn-primary flex items-center justify-center gap-2"
               >
                 Explore Products
                 <ArrowRight size={20} />
               </Link>
               <Link 
-                to="/erp/dashboard" 
+                to="/trace" 
                 className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full font-bold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20"
               >
-                Access ERP
-                <LayoutDashboard size={20} />
+                🔗 Trace a Product
+                <Anchor size={20} />
               </Link>
               <Link 
                 to="/team" 
@@ -270,38 +270,65 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {(cmsData.products || []).slice(0, 3).map((product: any, i: number) => (
-              <motion.div 
-                key={product.id || i}
-                whileHover={{ y: -10 }}
-                className="bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-2xl transition-all border border-slate-100 dark:border-slate-800"
-              >
-                <div className="h-64 overflow-hidden">
-                  <img 
-                    src={product.image || "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&q=80&w=800"} 
-                    alt={product.name} 
-                    className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
-                    referrerPolicy="no-referrer"
-                  />
+            {loading ? (
+              [1, 2, 3].map((_, i) => (
+                <div key={i} className="card-modern p-0 overflow-hidden animate-pulse">
+                  <div className="h-64 img-skeleton" />
+                  <div className="p-8 space-y-4">
+                    <div className="h-6 bg-slate-200 dark:bg-slate-800 rounded w-3/4" />
+                    <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/4" />
+                    <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-full" />
+                    <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded-xl w-full mt-4" />
+                  </div>
                 </div>
-                <div className="p-8">
-                  <h3 className="text-2xl font-bold text-blue-950 dark:text-white mb-2">{product.name}</h3>
-                  <p className="text-green-600 font-bold text-sm mb-4">{product.category}</p>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm mb-8 line-clamp-3">{product.description}</p>
-                  <Link to="/products" className="w-full py-3 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-blue-950 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
-                    Learn More <ArrowRight size={18} />
-                  </Link>
-                </div>
-              </motion.div>
-            ))}
-            {(!cmsData.products || cmsData.products.length === 0) && [1,2,3].map((_, i) => (
-              <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-100 dark:border-slate-800 animate-pulse">
-                <div className="h-48 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-6" />
-                <div className="h-6 bg-slate-100 dark:bg-slate-800 rounded w-3/4 mb-4" />
-                <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-full mb-2" />
-                <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-5/6" />
+              ))
+            ) : (
+              (cmsData.products || []).slice(0, 3).map((product: any, i: number) => (
+                <motion.div 
+                  key={product.id || i}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className="card-modern p-0 overflow-hidden group"
+                >
+                  <div className="h-64 overflow-hidden relative">
+                    <img 
+                      src={product.image || "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&q=80&w=800"} 
+                      alt={product.name} 
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      onError={(e: any) => {
+                        e.target.src = "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&q=80&w=800";
+                      }}
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute top-4 right-4">
+                      <span className="px-3 py-1 bg-green-600 text-white text-[10px] font-bold rounded-full shadow-lg">
+                        {product.traceStatus || 'Traceable'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-8">
+                    <h3 className="text-2xl font-bold text-text-primary dark:text-dark-text-primary mb-2">{product.name}</h3>
+                    <p className="text-accent-primary font-bold text-sm mb-4">{product.category}</p>
+                    <p className="text-text-secondary dark:text-dark-text-secondary text-sm mb-8 line-clamp-3">{product.description}</p>
+                    <div className="flex gap-2">
+                      <Link to="/products" className="flex-1 py-3 border border-border-main dark:border-dark-border-main rounded-xl font-bold text-text-primary dark:text-dark-text-primary hover:bg-bg-tertiary dark:hover:bg-dark-bg-tertiary transition-all flex items-center justify-center gap-2">
+                        Details
+                      </Link>
+                      <Link to={`/trace?id=${product.id}`} className="flex-1 py-3 bg-accent-primary text-white rounded-xl font-bold hover:bg-accent-primary/90 transition-all flex items-center justify-center gap-2">
+                        Trace <Anchor size={18} />
+                      </Link>
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            )}
+            {!loading && (!cmsData.products || cmsData.products.length === 0) && (
+              <div className="col-span-full py-20 text-center text-text-muted">
+                <p className="text-xl font-medium">Products coming soon</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </section>
@@ -402,23 +429,21 @@ export default function Home() {
             <p className="text-slate-500 dark:text-slate-400 text-lg">A glimpse into our global sourcing and logistics operations.</p>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {(cmsData.gallery || []).map((item: any, i: number) => (
               <motion.div 
                 key={item.id || i}
-                whileHover={{ scale: 1.02 }}
-                className={`relative rounded-2xl overflow-hidden bg-slate-200 dark:bg-slate-800 ${
-                  i === 0 ? 'md:col-span-2 md:row-span-2' : ''
-                }`}
+                whileHover={{ scale: 1.05 }}
+                className="relative rounded-3xl overflow-hidden bg-slate-200 dark:bg-slate-800 aspect-square shadow-soft hover:shadow-soft-lg transition-all duration-500"
               >
                 <img 
                   src={item.url} 
                   alt={item.caption || "Gallery image"} 
-                  className="w-full h-full object-cover aspect-square md:aspect-auto"
+                  className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 hover:opacity-100 transition-opacity p-6 flex items-end">
-                  <p className="text-white text-sm font-medium">{item.caption}</p>
+                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent opacity-0 hover:opacity-100 transition-all duration-500 p-6 flex flex-col justify-end">
+                  <p className="text-white text-sm font-bold transform translate-y-4 hover:translate-y-0 transition-transform duration-500">{item.caption}</p>
                 </div>
               </motion.div>
             ))}

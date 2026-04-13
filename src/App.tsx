@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import React, { useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
@@ -32,6 +33,7 @@ import Documents from "./erp/Documents";
 import ProductCatalog from "./erp/ProductCatalog";
 import UserManagement from "./erp/UserManagement";
 import WebsiteManager from "./erp/WebsiteManager";
+import CustomCursor from "./components/CustomCursor";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import AccessDenied from "./pages/AccessDenied";
@@ -69,10 +71,66 @@ function AppContent() {
   const location = useLocation();
   const isERP = location.pathname.startsWith('/erp');
   const isLoginPage = location.pathname === '/login';
+  const [isPageLoading, setIsPageLoading] = React.useState(true);
+  const [scrollProgress, setScrollProgress] = React.useState(0);
+  const [showBackToTop, setShowBackToTop] = React.useState(false);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setIsPageLoading(false), 1500);
+    
+    const handleScroll = () => {
+      const totalHeight = document.body.scrollHeight - window.innerHeight;
+      const progress = (window.scrollY / totalHeight) * 100;
+      setScrollProgress(progress);
+      setShowBackToTop(window.scrollY > 400);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   return (
-    <div className={`min-h-screen ${isERP ? 'bg-slate-100 text-slate-900' : 'bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100'} font-sans selection:bg-green-100 dark:selection:bg-green-900 selection:text-green-900 dark:selection:text-green-100 transition-colors duration-300`}>
+    <div className={`min-h-screen ${isERP ? 'bg-slate-100 text-slate-900' : 'bg-bg-primary dark:bg-dark-bg-primary text-text-primary dark:text-dark-text-primary'} font-sans selection:bg-green-100 dark:selection:bg-green-900 selection:text-green-900 dark:selection:text-green-100 transition-colors duration-300`}>
+      <AnimatePresence>
+        {isPageLoading && !isERP && (
+          <motion.div 
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-dark-bg-primary z-[999999] flex flex-col items-center justify-center"
+          >
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="text-white text-4xl font-black tracking-tighter mb-8"
+            >
+              TRACES.IO
+            </motion.div>
+            <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 1.5, ease: "easeInOut" }}
+                className="h-full bg-accent-primary"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {!isERP && !isLoginPage && (
+        <div className="fixed top-0 left-0 w-full h-1 z-[100]">
+          <div 
+            className="h-full bg-accent-primary transition-all duration-150" 
+            style={{ width: `${scrollProgress}%` }}
+          />
+        </div>
+      )}
+
       {!isERP && !isLoginPage && <Navbar />}
+      
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -112,7 +170,22 @@ function AppContent() {
           </Route>
         </Routes>
       </main>
+
       {!isERP && !isLoginPage && <Footer />}
+
+      <AnimatePresence>
+        {showBackToTop && !isERP && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="fixed bottom-8 right-8 w-12 h-12 bg-accent-primary text-white rounded-full shadow-lg flex items-center justify-center z-50 hover:bg-accent-primary/90 transition-colors"
+          >
+            <i className="fa-solid fa-arrow-up"></i>
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -120,6 +193,7 @@ function AppContent() {
 export default function App() {
   return (
     <ThemeProvider>
+      <CustomCursor />
       <AuthProvider>
         <Router>
           <ScrollToTop />

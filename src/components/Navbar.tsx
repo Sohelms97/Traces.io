@@ -43,7 +43,7 @@ export default function Navbar() {
   return (
     <nav
       className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
-        scrolled || !isHomePage ? "bg-white/90 dark:bg-slate-950/90 backdrop-blur-md shadow-sm py-3" : "bg-transparent py-6"
+        scrolled || !isHomePage ? "glass-nav py-3" : "bg-transparent py-6"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -66,60 +66,38 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center space-x-8">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                to={link.path}
-                className={`text-sm font-medium transition-colors hover:text-green-500 ${
-                  scrolled || !isHomePage ? "text-slate-700 dark:text-slate-300" : "text-white/90"
-                } ${location.pathname === link.path ? "text-green-500 font-semibold" : ""}`}
-              >
-                {link.name}
-              </Link>
-            ))}
-            
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-full transition-all ${
-                scrolled || !isHomePage ? "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" : "text-white hover:bg-white/10"
-              }`}
-              aria-label="Toggle theme"
-            >
-              {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
-            </button>
-
-            {user ? (
-              <Link
-                to="/erp/dashboard"
-                className="bg-blue-900 hover:bg-blue-800 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all flex items-center gap-2 shadow-lg shadow-blue-900/20"
-              >
-                <LayoutDashboard size={16} />
-                Dashboard
-              </Link>
-            ) : (
-              <Link
-                to="/login"
-                className={`flex items-center gap-2 text-sm font-semibold px-5 py-2 rounded-full border transition-all ${
-                  scrolled || !isHomePage 
-                    ? "border-slate-200 text-slate-700 hover:bg-slate-50" 
-                    : "border-white/30 text-white hover:bg-white/10"
+            {/* Desktop Nav */}
+            <div className="hidden md:flex items-center space-x-8">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.name}
+                  to={link.path}
+                  className={`text-sm font-medium transition-colors hover:text-green-500 ${
+                    scrolled || !isHomePage ? "text-slate-700 dark:text-slate-300" : "text-white/90"
+                  } ${location.pathname === link.path ? "text-green-500 font-semibold" : ""}`}
+                >
+                  {link.name}
+                </Link>
+              ))}
+              
+              <button
+                onClick={toggleTheme}
+                className={`p-2 rounded-full transition-all ${
+                  scrolled || !isHomePage ? "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" : "text-white hover:bg-white/10"
                 }`}
+                aria-label="Toggle theme"
               >
-                <LogIn size={16} />
-                Login
-              </Link>
-            )}
+                {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
+              </button>
 
-            <Link
-              to="/trace"
-              className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all flex items-center gap-2"
-            >
-              <Search size={16} />
-              Trace a Product
-            </Link>
-          </div>
+              <Link
+                to="/trace"
+                className="btn-primary flex items-center gap-2"
+              >
+                <Search size={16} />
+                Trace a Product
+              </Link>
+            </div>
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-4">

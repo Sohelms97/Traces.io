@@ -9,6 +9,9 @@ import { createServer as createViteServer } from "vite";
 import authRoutes from "./routes/auth.routes";
 import containerRoutes from "./routes/container.routes";
 import productRoutes from "./routes/product.routes";
+import publicRoutes from "./routes/public.routes";
+import traceabilityRoutes from "./routes/traceability.routes";
+import teamRoutes from "./routes/team.routes";
 import cmsRoutes from "./routes/cms.routes";
 import { UserModel } from "./models/User";
 import { db } from "./config/database";
@@ -40,10 +43,16 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 // Logging
 app.use(morgan("dev"));
 
+// Serve uploads
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/containers", containerRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/public", publicRoutes);
+app.use("/api/traceability", traceabilityRoutes);
+app.use("/api/team", teamRoutes);
 app.use("/api/cms", cmsRoutes);
 
 // Error handler

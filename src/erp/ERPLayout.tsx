@@ -34,7 +34,7 @@ export default function ERPLayout() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
-  const { user, logout, role, isAdmin } = useAuth();
+  const { user, logout, role, isAdmin, hasPermission } = useAuth();
   const location = useLocation();
   const { addDocument } = useDocuments();
   const { alerts, markAsRead } = useAlerts();
@@ -48,9 +48,7 @@ export default function ERPLayout() {
 
   const unreadAlerts = alerts.filter(a => !a.isRead);
 
-  const allowedModules = sidebarModules.filter(m => 
-    role && rolePermissions[role]?.includes(m.path)
-  );
+  const allowedModules = sidebarModules.filter(m => hasPermission(m.path));
 
   const currentModule = sidebarModules.find(m => m.path === location.pathname) || { name: 'Dashboard' };
 

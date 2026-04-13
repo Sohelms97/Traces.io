@@ -30,7 +30,13 @@ export default function Documents() {
 
   const handleDownload = (doc: DocumentRecord) => {
     if (doc.fileUrl) {
-      window.open(doc.fileUrl, '_blank');
+      const link = document.createElement('a');
+      link.href = doc.fileUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       return;
     }
 

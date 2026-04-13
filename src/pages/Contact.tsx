@@ -7,23 +7,33 @@ export default function Contact() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { cmsData, loading } = useCMS();
 
-  const siteSettings = cmsData.site || {
-    address: "123 Business Bay, Dubai, United Arab Emirates",
-    email: "info@farmersmarket.asia",
-    phone: "+971 4 123 4567",
-    socialLinks: {
-      facebook: "#",
-      twitter: "#",
-      linkedin: "#",
-      instagram: "#"
-    }
-  };
+  const siteSettings = {
+  address: cmsData.site?.address || "Suite 31, 20th Floor, Prime Tower, Business Bay, Dubai, UAE",
+  email: cmsData.site?.email || "hello@farmersmarketasia.io",
+  phone: cmsData.site?.phone || "+8801711268177",
+  socialLinks: {
+    facebook: cmsData.site?.socialLinks?.facebook || "#",
+    twitter: cmsData.site?.socialLinks?.twitter || "#",
+    linkedin: cmsData.site?.socialLinks?.linkedin || "https://www.linkedin.com/company/farmersmarket-asia",
+    instagram: cmsData.site?.socialLinks?.instagram || "#"
+  }
+};
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitted(true);
-    setTimeout(() => setIsSubmitted(false), 5000);
-  };
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+
+  await fetch("https://formspree.io/f/mnjlqdev", {
+    method: "POST",
+    body: new FormData(e.currentTarget),
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  setIsSubmitted(true);
+  e.currentTarget.reset();
+  setTimeout(() => setIsSubmitted(false), 5000);
+};
 
   return (
     <div className="pt-20">
