@@ -7,19 +7,30 @@ export function useCMS() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'cms'), (snapshot) => {
+    // Listen to CMS collection
+    const unsubCMS = onSnapshot(collection(db, 'cms'), (snapshot) => {
       const data: any = {};
       snapshot.forEach((doc) => {
         data[doc.id] = doc.data().data;
       });
-      setCmsData(data);
+      setCmsData(prev => ({ ...prev, ...data }));
       setLoading(false);
     }, (error) => {
       console.error("Error fetching CMS data:", error);
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Listen to Products collection
+    const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
+      const products = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      setCmsData(prev => ({ ...prev, products }));
+    }, (error) => {
+      console.error("Error fetching products for CMS:", error);
+    });
+
+    return () => {
+      unsubCMS();
+      unsubProducts();
+    };
   }, []);
 
   return { cmsData, loading };

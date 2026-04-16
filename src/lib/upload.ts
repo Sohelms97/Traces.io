@@ -48,15 +48,14 @@ export const uploadImage = async (file: File, path: string, timeoutMs: number = 
     
     // If it's a timeout or a specific Firebase error, try Base64
     if (error.message === "STORAGE_TIMEOUT" || error.code?.startsWith('storage/')) {
+      // Only allow Base64 fallback for small files to prevent Firestore 1MB limit issues
+      if (file.size > 500 * 1024) {
+        throw new Error("Firebase Storage upload failed and file is too large (>500KB) for database fallback. Please check your Firebase Storage configuration and rules.");
+      }
+
       try {
         const base64 = await convertToBase64();
         console.log("Fallback to Base64 successful.");
-        
-        // Warn about size if it's large (Firestore has 1MB limit per doc)
-        if (base64.length > 800000) {
-          console.warn("Base64 string is very large (>800KB). This might cause issues when saving to the database.");
-        }
-        
         return base64;
       } catch (fallbackError) {
         console.error("Base64 fallback also failed:", fallbackError);

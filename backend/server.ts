@@ -20,6 +20,9 @@ import { errorHandler } from "./middleware/error.middleware";
 const app = express();
 const PORT = 3000;
 
+// Trust proxy for rate limiting behind Cloud Run/Nginx
+app.set("trust proxy", 1);
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: false, // Disable for Vite dev server compatibility
@@ -32,7 +35,8 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 min
-  max: 100
+  max: 100,
+  validate: { default: false }, // Disable validation warnings as we've configured trust proxy
 });
 app.use("/api/", limiter);
 

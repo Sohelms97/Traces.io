@@ -6,7 +6,7 @@ import {
   CheckCircle2, AlertCircle, ChevronRight, Globe, RefreshCw, QrCode
 } from 'lucide-react';
 import { db, storage } from '../firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { uploadImage } from '../lib/upload';
 
 interface ProductEditorProps {
@@ -20,8 +20,8 @@ type Tab = 'basic' | 'details' | 'origin' | 'media' | 'pricing' | 'seo' | 'track
 export default function ProductEditor({ product, onClose, onSave }: ProductEditorProps) {
   const [activeTab, setActiveTab] = useState<Tab>('basic');
   const [saving, setSaving] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
-  const [traceabilityData, setTraceabilityData] = useState<any>(null);
+  const [uploading, setUploading] = useState(false);
+  const [stages, setStages] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     id: product?.id || "",
     productId: product?.productId || `PRD-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -65,16 +65,28 @@ export default function ProductEditor({ product, onClose, onSave }: ProductEdito
   React.useEffect(() => {
     if (product?.id) {
       fetchTraceability();
+    } else {
+      // Default stages for new product
+      setStages([
+        { id: 'harvest', name: 'Harvesting', status: 'Pending', date: new Date().toISOString().split('T')[0], showPublicly: true, order: 0, location: '', party: '', publicDescription: 'Product was harvested from sustainable sources.' },
+        { id: 'processing', name: 'Processing', status: 'Pending', date: new Date().toISOString().split('T')[0], showPublicly: true, order: 1, location: '', party: '', publicDescription: 'Quality control and processing at our facility.' },
+        { id: 'shipping', name: 'Shipping', status: 'Pending', date: new Date().toISOString().split('T')[0], showPublicly: true, order: 2, location: '', party: '', publicDescription: 'Dispatched for delivery to your location.' }
+      ]);
     }
   }, [product?.id]);
 
   const fetchTraceability = async () => {
     try {
-      const response = await fetch(`/api/traceability/product/${product.id}`);
-      const result = await response.json();
-      if (result.success) {
-        setTraceabilityData(result.data);
-      }
+      const q = query(
+        collection(db, 'products', product.id, 'traceability'),
+        orderBy('order', 'asc')
+      );
+      const snapshot = await getDocs(q);
+      const stageData = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      }));
+      setStages(stageData);
     } catch (err) {
       console.error("Error fetching traceability:", err);
     }
@@ -109,33 +121,28 @@ export default function ProductEditor({ product, onClose, onSave }: ProductEdito
   const handleSave = async () => {
     setSaving(true);
     try {
-      const method = product ? 'PUT' : 'POST';
-      const url = product ? `/api/products/${product.id}` : '/api/products';
+      const productRef = product?.id ? doc(db, 'products', product.id) : doc(collection(db, 'products'));
+      const productId = product?.id || productRef.id;
       
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(formData)
-      });
-      
-      const result = await response.json();
-      if (!result.success) throw new Error(result.message);
+      const productData = {
+        ...formData,
+        id: productId,
+        updatedAt: serverTimestamp(),
+        createdAt: product?.createdAt || serverTimestamp(),
+      };
 
-      // If traceability data exists, save it too
-      if (traceabilityData && traceabilityData.id) {
-        await fetch(`/api/traceability/${traceabilityData.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify(traceabilityData)
-        });
+      await setDoc(productRef, productData, { merge: true });
+
+      // Save stages to subcollection
+      for (const stage of stages) {
+        const stageId = stage.id.startsWith('stage-') || ['harvest', 'processing', 'shipping'].includes(stage.id) 
+          ? stage.id 
+          : `stage-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        const { id, ...stageData } = stage;
+        await setDoc(doc(db, 'products', productId, 'traceability', stageId), stageData, { merge: true });
       }
-
+      
       onSave();
       onClose();
     } catch (error: any) {
@@ -148,27 +155,12 @@ export default function ProductEditor({ product, onClose, onSave }: ProductEdito
 
   const handleMainImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !product?.id) return;
+    if (!file) return;
 
     setSaving(true);
-    const formDataUpload = new FormData();
-    formDataUpload.append('mainImage', file);
-
     try {
-      const response = await fetch(`/api/products/${product.id}/image`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: formDataUpload
-      });
-      
-      const result = await response.json();
-      if (result.success) {
-        setFormData({ ...formData, mainImage: result.data.imagePath });
-      } else {
-        throw new Error(result.message);
-      }
+      const url = await uploadImage(file, 'products');
+      setFormData({ ...formData, mainImage: url });
     } catch (error: any) {
       console.error("Error uploading main image:", error);
       alert(`Error uploading image: ${error.message}`);
@@ -179,32 +171,19 @@ export default function ProductEditor({ product, onClose, onSave }: ProductEdito
 
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0 || !product?.id) return;
+    if (!files || files.length === 0) return;
 
     setSaving(true);
-    const formDataUpload = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formDataUpload.append('gallery', files[i]);
-    }
-
     try {
-      const response = await fetch(`/api/products/${product.id}/gallery`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: formDataUpload
-      });
-      
-      const result = await response.json();
-      if (result.success) {
-        setFormData({ 
-          ...formData, 
-          galleryImages: [...formData.galleryImages, ...result.data] 
-        });
-      } else {
-        throw new Error(result.message);
+      const newImages = [];
+      for (let i = 0; i < files.length; i++) {
+        const url = await uploadImage(files[i], 'products/gallery');
+        newImages.push({ url, id: Date.now() + i });
       }
+      setFormData({ 
+        ...formData, 
+        galleryImages: [...formData.galleryImages, ...newImages] 
+      });
     } catch (error: any) {
       console.error("Error uploading gallery images:", error);
       alert(`Error uploading gallery: ${error.message}`);
@@ -213,33 +192,9 @@ export default function ProductEditor({ product, onClose, onSave }: ProductEdito
     }
   };
 
-  const deleteGalleryImage = async (index: number) => {
-    if (!product?.id) return;
-    
-    if (!confirm("Are you sure you want to delete this image?")) return;
-
-    setSaving(true);
-    try {
-      const response = await fetch(`/api/products/${product.id}/gallery/${index}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      const result = await response.json();
-      if (result.success) {
-        const updatedGallery = formData.galleryImages.filter((_, i) => i !== index);
-        setFormData({ ...formData, galleryImages: updatedGallery });
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (error: any) {
-      console.error("Error deleting gallery image:", error);
-      alert(`Error deleting image: ${error.message}`);
-    } finally {
-      setSaving(false);
-    }
+  const deleteGalleryImage = (index: number) => {
+    const updatedGallery = formData.galleryImages.filter((_: any, i: number) => i !== index);
+    setFormData({ ...formData, galleryImages: updatedGallery });
   };
 
   const tabs: { id: Tab; label: string; icon: any }[] = [
@@ -687,91 +642,154 @@ export default function ProductEditor({ product, onClose, onSave }: ProductEdito
                 </div>
               )}
 
-              {activeTab === 'tracking' && traceabilityData && (
+              {activeTab === 'tracking' && (
                 <div className="space-y-8">
-                  <div className="flex items-center justify-between p-6 bg-blue-50 rounded-[2rem] border border-blue-100">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-sm">
-                        <QrCode className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-blue-900">Traceability Status</h4>
-                        <p className="text-sm text-blue-700">Manage the 8 stages of this product's journey</p>
-                      </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-lg font-bold text-slate-800">Journey Tracking</h4>
+                      <p className="text-sm text-slate-500">Define the key stages of this product's journey.</p>
                     </div>
-                    <select 
-                      value={traceabilityData.overallStatus}
-                      onChange={(e) => setTraceabilityData({ ...traceabilityData, overallStatus: e.target.value })}
-                      className="p-3 bg-white border border-blue-200 rounded-xl font-bold text-sm text-blue-900 outline-none focus:ring-2 focus:ring-blue-500/20"
+                    <button 
+                      onClick={() => {
+                        const newStage = {
+                          id: `stage-${Date.now()}`,
+                          name: 'New Stage',
+                          status: 'Pending',
+                          date: new Date().toISOString().split('T')[0],
+                          showPublicly: true,
+                          order: stages.length,
+                          location: '',
+                          party: '',
+                          publicDescription: ''
+                        };
+                        setStages([...stages, newStage]);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all"
                     >
-                      <option value="not_started">Not Started</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="complete">Fully Traced</option>
-                    </select>
+                      <Plus className="w-4 h-4" /> Add Stage
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4">
-                    {traceabilityData.stages.map((stage: any, idx: number) => (
-                      <div key={stage.stageId} className="p-6 bg-white border border-slate-100 rounded-[2rem] hover:border-blue-200 transition-all shadow-sm">
-                        <div className="flex flex-col md:flex-row md:items-center gap-6">
-                          <div className="flex items-center gap-4 min-w-[200px]">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
-                              stage.status === 'complete' ? 'bg-green-100 text-green-600' : 
-                              stage.status === 'in_progress' ? 'bg-blue-100 text-blue-600' : 
-                              'bg-slate-100 text-slate-400'
-                            }`}>
+                  <div className="space-y-4">
+                    {stages.map((stage, idx) => (
+                      <div key={stage.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-200 space-y-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center font-bold text-blue-600 shadow-sm border border-slate-100">
                               {idx + 1}
                             </div>
-                            <h5 className="font-bold text-slate-800">{stage.stageName}</h5>
+                            <input 
+                              type="text"
+                              value={stage.name}
+                              onChange={(e) => {
+                                const newStages = [...stages];
+                                newStages[idx].name = e.target.value;
+                                setStages(newStages);
+                              }}
+                              className="bg-transparent font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-blue-500 outline-none px-1"
+                            />
                           </div>
-                          
-                          <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <button 
+                            onClick={() => {
+                              const newStages = stages.filter((_, i) => i !== idx);
+                              setStages(newStages);
+                            }}
+                            className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status</label>
                             <select 
                               value={stage.status}
                               onChange={(e) => {
-                                const newStages = [...traceabilityData.stages];
+                                const newStages = [...stages];
                                 newStages[idx].status = e.target.value;
-                                setTraceabilityData({ ...traceabilityData, stages: newStages });
+                                setStages(newStages);
                               }}
-                              className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none"
+                              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500/20"
                             >
-                              <option value="pending">Pending</option>
-                              <option value="in_progress">In Progress</option>
-                              <option value="complete">Complete</option>
+                              <option value="Pending">Pending</option>
+                              <option value="In Progress">In Progress</option>
+                              <option value="Complete">Complete</option>
                             </select>
-                            
-                            <input 
-                              type="text" 
-                              placeholder="Public Description..."
-                              value={stage.publicDescription || ''}
-                              onChange={(e) => {
-                                const newStages = [...traceabilityData.stages];
-                                newStages[idx].publicDescription = e.target.value;
-                                setTraceabilityData({ ...traceabilityData, stages: newStages });
-                              }}
-                              className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
-                            />
-
-                            <div className="flex items-center gap-3 px-3">
-                              <span className="text-xs font-bold text-slate-500 uppercase">Visible</span>
-                              <label className="relative inline-flex items-center cursor-pointer scale-75">
-                                <input 
-                                  type="checkbox" 
-                                  checked={stage.showOnWebsite}
-                                  onChange={(e) => {
-                                    const newStages = [...traceabilityData.stages];
-                                    newStages[idx].showOnWebsite = e.target.checked;
-                                    setTraceabilityData({ ...traceabilityData, stages: newStages });
-                                  }}
-                                  className="sr-only peer" 
-                                />
-                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                              </label>
-                            </div>
                           </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Date</label>
+                            <input 
+                              type="date"
+                              value={stage.date}
+                              onChange={(e) => {
+                                const newStages = [...stages];
+                                newStages[idx].date = e.target.value;
+                                setStages(newStages);
+                              }}
+                              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Location</label>
+                            <input 
+                              type="text"
+                              placeholder="e.g. North Sea"
+                              value={stage.location || ''}
+                              onChange={(e) => {
+                                const newStages = [...stages];
+                                newStages[idx].location = e.target.value;
+                                setStages(newStages);
+                              }}
+                              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Public Description</label>
+                          <textarea 
+                            value={stage.publicDescription || ''}
+                            onChange={(e) => {
+                              const newStages = [...stages];
+                              newStages[idx].publicDescription = e.target.value;
+                              setStages(newStages);
+                            }}
+                            className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 h-24"
+                            placeholder="Describe what happened at this stage..."
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={stage.showPublicly}
+                              onChange={(e) => {
+                                const newStages = [...stages];
+                                newStages[idx].showPublicly = e.target.checked;
+                                setStages(newStages);
+                              }}
+                              className="sr-only peer" 
+                            />
+                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                          </label>
+                          <span className="text-xs font-bold text-slate-600">Visible to Customers</span>
                         </div>
                       </div>
                     ))}
+                    {stages.length === 0 && (
+                      <div className="py-12 text-center bg-slate-50 rounded-[32px] border-2 border-dashed border-slate-200">
+                        <MapPin className="w-12 h-12 text-slate-300 mx-auto mb-4 opacity-20" />
+                        <p className="text-slate-500 font-medium">No tracking stages defined yet.</p>
+                        <button 
+                          onClick={() => setStages([{ id: 'harvest', name: 'Harvesting', status: 'Pending', date: new Date().toISOString().split('T')[0], showPublicly: true, order: 0, location: '', party: '', publicDescription: '' }])}
+                          className="mt-4 text-blue-600 font-bold text-sm hover:underline"
+                        >
+                          Add Default Stages
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

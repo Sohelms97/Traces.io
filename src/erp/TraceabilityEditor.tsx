@@ -6,7 +6,7 @@ import { uploadImage } from '../lib/upload';
 import { 
   History, Plus, GripVertical, Trash2, Edit2, CheckCircle2, 
   Clock, AlertCircle, MapPin, Search, Package, ArrowRight,
-  ChevronRight, Save, Eye, QrCode, Layout, Info, Camera, FileText, Loader2, X, Upload
+  ChevronRight, Save, Eye, QrCode, Layout, Info, Camera, FileText, Loader2, X, Upload, RefreshCw
 } from 'lucide-react';
 import ConfirmationModal from '../components/ConfirmationModal';
 
@@ -29,6 +29,7 @@ export default function TraceabilityEditor({ productId, productName }: { product
   const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeStage, setActiveStage] = useState<Stage | null>(null);
+  const [localStage, setLocalStage] = useState<Stage | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -50,9 +51,16 @@ export default function TraceabilityEditor({ productId, productName }: { product
       
       setStages(stageData);
       setLoading(false);
-      if (stageData.length > 0 && !activeStage) {
-        setActiveStage(stageData[0]);
-      }
+      
+      // Only set initial active stage if none is selected
+      setActiveStage(current => {
+        if (current) {
+          // Update the current active stage with new data from snapshot if it exists
+          const updatedActive = stageData.find(s => s.id === current.id);
+          return updatedActive || current;
+        }
+        return stageData[0] || null;
+      });
     });
 
     return () => unsubscribe();
@@ -77,15 +85,38 @@ export default function TraceabilityEditor({ productId, productName }: { product
     await setDoc(doc(db, 'products', productId, 'traceability', stageId), newStage);
   };
 
-  const handleUpdateStage = async (stageId: string, data: Partial<Stage>) => {
-    setSaving(true);
-    try {
-      await setDoc(doc(db, 'products', productId, 'traceability', stageId), data, { merge: true });
-    } catch (error) {
-      console.error("Error updating stage:", error);
-    } finally {
-      setSaving(false);
+  useEffect(() => {
+    if (activeStage) {
+      // Only update localStage if it's a different stage or if localStage is null
+      if (!localStage || localStage.id !== activeStage.id) {
+        setLocalStage(activeStage);
+      }
+    } else {
+      setLocalStage(null);
     }
+  }, [activeStage?.id]);
+
+  // Debounced save
+  useEffect(() => {
+    if (!localStage || !activeStage || localStage === activeStage) return;
+
+    const timer = setTimeout(async () => {
+      setSaving(true);
+      try {
+        const { id, ...data } = localStage;
+        await setDoc(doc(db, 'products', productId, 'traceability', id), data, { merge: true });
+      } catch (error) {
+        console.error("Error auto-saving stage:", error);
+      } finally {
+        setSaving(false);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [localStage, productId]);
+
+  const handleUpdateStage = (stageId: string, data: Partial<Stage>) => {
+    setLocalStage(prev => prev ? { ...prev, ...data } : null);
   };
 
   const handleDeleteStage = (stageId: string) => {
@@ -120,13 +151,13 @@ export default function TraceabilityEditor({ productId, productName }: { product
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !activeStage) return;
+    if (!file || !localStage) return;
 
     setUploading(true);
     try {
-      const url = await uploadImage(file, `traceability/${productId}/${activeStage.id}`);
-      const newDocs = [...(activeStage.documents || []), { name: file.name, url }];
-      await handleUpdateStage(activeStage.id, { documents: newDocs });
+      const url = await uploadImage(file, `traceability/${productId}/${localStage.id}`);
+      const newDocs = [...(localStage.documents || []), { name: file.name, url }];
+      handleUpdateStage(localStage.id, { documents: newDocs });
     } catch (error: any) {
       alert(`Error uploading file: ${error.message}`);
     } finally {
@@ -135,10 +166,10 @@ export default function TraceabilityEditor({ productId, productName }: { product
   };
 
   const removeDocument = async (index: number) => {
-    if (!activeStage) return;
-    const newDocs = [...(activeStage.documents || [])];
+    if (!localStage) return;
+    const newDocs = [...(localStage.documents || [])];
     newDocs.splice(index, 1);
-    await handleUpdateStage(activeStage.id, { documents: newDocs });
+    handleUpdateStage(localStage.id, { documents: newDocs });
   };
 
   if (loading) return <div className="p-8 text-center">Loading timeline...</div>;
@@ -232,9 +263,9 @@ export default function TraceabilityEditor({ productId, productName }: { product
         {/* Right Panel: Stage Editor */}
         <div className="flex-1 overflow-y-auto bg-white">
           <AnimatePresence mode="wait">
-            {activeStage ? (
+            {localStage ? (
               <motion.div 
-                key={activeStage.id}
+                key={localStage.id}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -251,7 +282,13 @@ export default function TraceabilityEditor({ productId, productName }: { product
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Auto-saving...</span>
+                    {saving ? (
+                      <span className="text-xs font-bold text-blue-500 uppercase tracking-wider flex items-center gap-2">
+                        <RefreshCw className="w-3 h-3 animate-spin" /> Saving...
+                      </span>
+                    ) : (
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Saved</span>
+                    )}
                   </div>
                 </div>
 
@@ -261,8 +298,8 @@ export default function TraceabilityEditor({ productId, productName }: { product
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Stage Name</label>
                       <input 
                         type="text" 
-                        value={activeStage.name}
-                        onChange={(e) => handleUpdateStage(activeStage.id, { name: e.target.value })}
+                        value={localStage.name}
+                        onChange={(e) => handleUpdateStage(localStage.id, { name: e.target.value })}
                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none"
                       />
                     </div>
@@ -271,8 +308,8 @@ export default function TraceabilityEditor({ productId, productName }: { product
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Location</label>
                         <input 
                           type="text" 
-                          value={activeStage.location || ''}
-                          onChange={(e) => handleUpdateStage(activeStage.id, { location: e.target.value })}
+                          value={localStage.location || ''}
+                          onChange={(e) => handleUpdateStage(localStage.id, { location: e.target.value })}
                           className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none"
                           placeholder="e.g. Athens, Greece"
                         />
@@ -281,8 +318,8 @@ export default function TraceabilityEditor({ productId, productName }: { product
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Responsible Party</label>
                         <input 
                           type="text" 
-                          value={activeStage.party || ''}
-                          onChange={(e) => handleUpdateStage(activeStage.id, { party: e.target.value })}
+                          value={localStage.party || ''}
+                          onChange={(e) => handleUpdateStage(localStage.id, { party: e.target.value })}
                           className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none"
                           placeholder="e.g. Aegean Fisheries"
                         />
@@ -292,8 +329,8 @@ export default function TraceabilityEditor({ productId, productName }: { product
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</label>
                         <select 
-                          value={activeStage.status}
-                          onChange={(e) => handleUpdateStage(activeStage.id, { status: e.target.value as any })}
+                          value={localStage.status}
+                          onChange={(e) => handleUpdateStage(localStage.id, { status: e.target.value as any })}
                           className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none"
                         >
                           <option value="Complete">Complete</option>
@@ -305,8 +342,8 @@ export default function TraceabilityEditor({ productId, productName }: { product
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date</label>
                         <input 
                           type="date" 
-                          value={activeStage.date}
-                          onChange={(e) => handleUpdateStage(activeStage.id, { date: e.target.value })}
+                          value={localStage.date}
+                          onChange={(e) => handleUpdateStage(localStage.id, { date: e.target.value })}
                           className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none"
                         />
                       </div>
@@ -314,8 +351,8 @@ export default function TraceabilityEditor({ productId, productName }: { product
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Public Description (Shown to Customers)</label>
                       <textarea 
-                        value={activeStage.publicDescription}
-                        onChange={(e) => handleUpdateStage(activeStage.id, { publicDescription: e.target.value })}
+                        value={localStage.publicDescription}
+                        onChange={(e) => handleUpdateStage(localStage.id, { publicDescription: e.target.value })}
                         className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none h-32"
                         placeholder="Describe what happened at this stage..."
                       />
@@ -332,8 +369,8 @@ export default function TraceabilityEditor({ productId, productName }: { product
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input 
                             type="checkbox" 
-                            checked={activeStage.showPublicly}
-                            onChange={(e) => handleUpdateStage(activeStage.id, { showPublicly: e.target.checked })}
+                            checked={localStage.showPublicly}
+                            onChange={(e) => handleUpdateStage(localStage.id, { showPublicly: e.target.checked })}
                             className="sr-only peer" 
                           />
                           <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
@@ -373,7 +410,7 @@ export default function TraceabilityEditor({ productId, productName }: { product
 
                         {/* Document List */}
                         <div className="space-y-2">
-                          {activeStage.documents?.map((doc, idx) => (
+                          {localStage.documents?.map((doc, idx) => (
                             <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 group">
                               <div className="flex items-center gap-3 min-w-0">
                                 <FileText className="w-4 h-4 text-blue-600 shrink-0" />

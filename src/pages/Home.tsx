@@ -283,7 +283,7 @@ export default function Home() {
                 </div>
               ))
             ) : (
-              (cmsData.products || []).slice(0, 3).map((product: any, i: number) => (
+              (cmsData.products || []).filter((p: any) => p.featured).slice(0, 3).map((product: any, i: number) => (
                 <motion.div 
                   key={product.id || i}
                   initial={{ opacity: 0, y: 30 }}
@@ -294,7 +294,7 @@ export default function Home() {
                 >
                   <div className="h-64 overflow-hidden relative">
                     <img 
-                      src={product.image || "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&q=80&w=800"} 
+                      src={product.image || product.mainImage || "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&q=80&w=800"} 
                       alt={product.name} 
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       onError={(e: any) => {
@@ -311,7 +311,7 @@ export default function Home() {
                   <div className="p-8">
                     <h3 className="text-2xl font-bold text-text-primary dark:text-dark-text-primary mb-2">{product.name}</h3>
                     <p className="text-accent-primary font-bold text-sm mb-4">{product.category}</p>
-                    <p className="text-text-secondary dark:text-dark-text-secondary text-sm mb-8 line-clamp-3">{product.description}</p>
+                    <p className="text-text-secondary dark:text-dark-text-secondary text-sm mb-8 line-clamp-3">{product.description || product.shortDescription}</p>
                     <div className="flex gap-2">
                       <Link to="/products" className="flex-1 py-3 border border-border-main dark:border-dark-border-main rounded-xl font-bold text-text-primary dark:text-dark-text-primary hover:bg-bg-tertiary dark:hover:bg-dark-bg-tertiary transition-all flex items-center justify-center gap-2">
                         Details
@@ -324,9 +324,9 @@ export default function Home() {
                 </motion.div>
               ))
             )}
-            {!loading && (!cmsData.products || cmsData.products.length === 0) && (
+            {!loading && (cmsData.products || []).filter((p: any) => p.featured).length === 0 && (
               <div className="col-span-full py-20 text-center text-text-muted">
-                <p className="text-xl font-medium">Products coming soon</p>
+                <p className="text-xl font-medium">Featured products coming soon</p>
               </div>
             )}
           </div>

@@ -339,24 +339,9 @@ function TeamManager({ data, onSave, saving }: any) {
     const file = e.target.files?.[0];
     if (file) {
       setUploading(true);
-      const formData = new FormData();
-      formData.append('photo', file);
-      
       try {
-        const response = await fetch('/api/team/photo', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: formData
-        });
-        
-        const result = await response.json();
-        if (result.success) {
-          setCurrentPhoto(result.data.photoUrl);
-        } else {
-          throw new Error(result.message);
-        }
+        const url = await uploadImage(file, 'team');
+        setCurrentPhoto(url);
       } catch (error: any) {
         console.error("Error uploading photo:", error);
         alert(`Failed to upload photo: ${error.message}`);
@@ -461,7 +446,7 @@ function TeamManager({ data, onSave, saving }: any) {
                 <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="flex items-center gap-6 mb-6">
                 <div className="relative group">
                   <div className="w-24 h-24 bg-slate-100 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden">
@@ -825,7 +810,7 @@ function PartnersManager({ data, onSave, saving }: any) {
                 <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="flex items-center gap-6 mb-6">
                 <div className="relative group">
                   <div className="w-24 h-24 bg-slate-100 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden p-4">
@@ -977,7 +962,7 @@ function TestimonialsManager({ data, onSave, saving }: any) {
               <h3 className="text-lg font-bold text-slate-800">{editingTestimonial ? 'Edit Testimonial' : 'Add Testimonial'}</h3>
               <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="flex items-center gap-6 mb-6">
                 <div className="relative group">
                   <div className="w-20 h-20 bg-slate-100 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden">
@@ -1086,7 +1071,7 @@ function FAQsManager({ data, onSave, saving }: any) {
               <h3 className="text-lg font-bold text-slate-800">{editingFaq ? 'Edit FAQ' : 'Add FAQ'}</h3>
               <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">Question</label>
                 <input type="text" defaultValue={editingFaq?.question} id="faq-q" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
@@ -1209,7 +1194,7 @@ function SocialManager({ data, onSave, saving }: any) {
               <h3 className="text-lg font-bold text-slate-800">{editingLink ? 'Edit Social Link' : 'Add Social Link'}</h3>
               <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">Platform</label>
                 <select id="s-platform" defaultValue={editingLink?.platform || 'LinkedIn'} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none">
@@ -1303,7 +1288,7 @@ function AnnouncementsManager({ data, onSave, saving }: any) {
               <h3 className="text-lg font-bold text-slate-800">{editingAnnouncement ? 'Edit Announcement' : 'New Announcement'}</h3>
               <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-500 uppercase">Title</label>

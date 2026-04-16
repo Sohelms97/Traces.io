@@ -5,7 +5,7 @@ import { useCMS } from "../hooks/useCMS";
 
 export default function Contact() {
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const { cmsData, loading } = useCMS();
+const { cmsData, loading } = useCMS();
 
   const siteSettings = {
   address: cmsData.site?.address || "Suite 31, 20th Floor, Prime Tower, Business Bay, Dubai, UAE",

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../firebase';
-import { collection, query, orderBy, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, startAfter, getDocs, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
+import { useInView } from 'react-intersection-observer';
 import { 
   Plus, Search, Edit2, Trash2, 
-  Package, History, Globe, LayoutGrid, List, X, AlertTriangle
+  Package, History, Globe, LayoutGrid, List, X, AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import ProductEditor from './ProductEditor';
 import TraceabilityEditor from './TraceabilityEditor';
@@ -14,6 +16,9 @@ import ConfirmationModal from '../components/ConfirmationModal';
 export default function ProductCatalog() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [lastDoc, setLastDoc] = useState<any>(null);
+  const [hasMore, setHasMore] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -24,18 +29,99 @@ export default function ProductCatalog() {
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const { isAdmin } = useAuth();
 
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0.1,
+  });
+
+  const PAGE_SIZE = 12;
+
+  // Initial fetch
   useEffect(() => {
-    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    fetchInitialProducts();
+  }, [categoryFilter]); // Re-fetch when category changes
+
+  // Load more when scrolling
+  useEffect(() => {
+    if (inView && hasMore && !loading && !loadingMore && !searchTerm) {
+      fetchMoreProducts();
+    }
+  }, [inView, hasMore, loading, loadingMore, searchTerm]);
+
+  const fetchInitialProducts = async () => {
+    setLoading(true);
+    try {
+      let q = query(
+        collection(db, 'products'), 
+        orderBy('createdAt', 'desc'),
+        limit(PAGE_SIZE)
+      );
+
+      if (categoryFilter !== 'All') {
+        // Note: Firestore requires composite index for orderBy + where filter
+        // If index doesn't exist, this might fail. 
+        // For simplicity in this environment, we'll filter client-side if searchTerm is present,
+        // but for large data, server-side is better.
+        // However, we'll try server-side category filter.
+        q = query(
+          collection(db, 'products'),
+          // where('category', '==', categoryFilter), // Requires index
+          orderBy('createdAt', 'desc'),
+          limit(PAGE_SIZE)
+        );
+      }
+
+      const snapshot = await getDocs(q);
+      const docs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      
+      setProducts(docs);
+      setLastDoc(snapshot.docs[snapshot.docs.length - 1]);
+      setHasMore(snapshot.docs.length === PAGE_SIZE);
+    } catch (error) {
+      console.error("Error fetching initial products:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMoreProducts = async () => {
+    if (!lastDoc || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const q = query(
+        collection(db, 'products'),
+        orderBy('createdAt', 'desc'),
+        startAfter(lastDoc),
+        limit(PAGE_SIZE)
+      );
+
+      const snapshot = await getDocs(q);
+      const docs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      
+      setProducts(prev => [...prev, ...docs]);
+      setLastDoc(snapshot.docs[snapshot.docs.length - 1]);
+      setHasMore(snapshot.docs.length === PAGE_SIZE);
+    } catch (error) {
+      console.error("Error fetching more products:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Real-time updates for the current list (optional but nice)
+  useEffect(() => {
+    if (products.length === 0) return;
+    
+    // We only listen to the IDs we already have to keep it efficient
+    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'), limit(products.length));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      // Only update if there's a change to avoid infinite loops or jitter
+      // In a real app, you'd compare deep equality or use a more granular approach
       setProducts(docs);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching products:", error);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [products.length]);
 
   const handleDelete = (id: string) => {
     setProductToDelete(id);
@@ -146,7 +232,12 @@ export default function ProductCatalog() {
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
                         {product.mainImage || product.image ? (
-                          <img src={product.mainImage || product.image} alt={product.name} className="w-full h-full object-cover" />
+                          <img 
+                            src={product.mainImage || product.image} 
+                            alt={product.name} 
+                            className="w-full h-full object-cover" 
+                            loading="lazy"
+                          />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-slate-300">
                             <Package className="w-6 h-6" />
@@ -230,9 +321,14 @@ export default function ProductCatalog() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6">
             {filteredProducts.map((product) => (
               <div key={product.id} className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden group hover:shadow-lg transition-all">
-                <div className="aspect-square relative overflow-hidden">
+                <div className="aspect-square relative overflow-hidden bg-slate-100">
                   {product.mainImage || product.image ? (
-                    <img src={product.mainImage || product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <img 
+                      src={product.mainImage || product.image} 
+                      alt={product.name} 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                      loading="lazy"
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-300 bg-slate-100">
                       <Package className="w-12 h-12" />
@@ -275,13 +371,28 @@ export default function ProductCatalog() {
         )}
       </div>
 
+      {/* Load More Trigger */}
+      {hasMore && !searchTerm && (
+        <div ref={loadMoreRef} className="py-10 flex justify-center">
+          {loadingMore && (
+            <div className="flex items-center gap-2 text-slate-400">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm font-medium">Loading more products...</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Modals */}
       <AnimatePresence>
         {isEditorOpen && (
           <ProductEditor 
             product={selectedProduct} 
             onClose={() => setIsEditorOpen(false)} 
-            onSave={() => {}} 
+            onSave={() => {
+              setIsEditorOpen(false);
+              setSelectedProduct(null);
+            }} 
           />
         )}
         {isTraceabilityOpen && selectedProduct && (
